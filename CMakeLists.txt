@@ -45,7 +45,52 @@ add_executable(mtls-mproxy)
 target_sources(mtls-mproxy
     PRIVATE
         src/main.cpp
+
+        # Common types
+        src/app/transport/io_buffer.h
+        src/app/transport/stream.h
+        src/app/transport/server_stream.h
+        src/app/transport/client_stream.h
+        src/app/transport/stream_manager.h
+
+        # Outgoing proxy connections support
+        src/app/transport/tcp_client_stream.h
+        src/app/transport/tcp_client_stream.cpp
+
+        # Incoming plain tcp support
+        src/app/transport/tcp/server.h
+        src/app/transport/tcp/server.cpp
+        src/app/transport/tcp/tcp_server_stream.h
+        src/app/transport/tcp/tcp_server_stream.cpp
+
+        # Incoming mTLS support
+        src/app/transport/tls/tls_server.h
+        src/app/transport/tls/tls_server.cpp
+        src/app/transport/tls/tls_server_stream.h
+        src/app/transport/tls/tls_server_stream.cpp
+
+        # Http(s) proxy
+        src/app/http/http.h
+        src/app/http/http.cpp
+        src/app/http/http_session.h
+        src/app/http/http_session.cpp
+        src/app/http/http_state.h
+        src/app/http/http_state.cpp
+        src/app/http/http_stream_manager.h
+        src/app/http/http_stream_manager.cpp
+
+        # Socks5 proxy
+        src/app/socks5/socks5.h
+        src/app/socks5/socks5.cpp
+        src/app/socks5/socks5_session.h
+        src/app/socks5/socks5_session.cpp
+        src/app/socks5/socks5_state.h
+        src/app/socks5/socks5_state.cpp
+        src/app/socks5/socks5_stream_manager.h
+        src/app/socks5/socks5_stream_manager.cpp
 )
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/app)
 
 target_link_libraries(mtls-mproxy
     PRIVATE
