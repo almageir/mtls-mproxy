@@ -1,23 +1,24 @@
-#ifndef SERVER_STREAM_H
-#define SERVER_STREAM_H
-
+#ifndef MTLS_MPROXY_TRANSPORT_SERVER_STREAM_H
+#define MTLS_MPROXY_TRANSPORT_SERVER_STREAM_H
 
 #include "stream.h"
 
-#include <asio/executor.hpp>
+#include <asio/any_io_executor.hpp>
 
-namespace net = asio;
-
-class server_stream
-    : public stream
-    , public std::enable_shared_from_this<server_stream>
+namespace mtls_mproxy
 {
-public:
-    server_stream(const stream_manager_ptr& smp, int id) : stream(smp, id) {}
-    virtual net::io_context& context() = 0;
-};
+    namespace net = asio;
 
-using server_stream_ptr = std::shared_ptr<server_stream>;
+    class ServerStream
+        : public Stream
+        , public std::enable_shared_from_this<ServerStream>
+    {
+    public:
+        ServerStream(const StreamManagerPtr& smp, int id) : Stream(smp, id) {}
+        virtual net::any_io_executor executor() = 0;
+    };
 
+    using ServerStreamPtr = std::shared_ptr<ServerStream>;
+}
 
-#endif //SERVER_STREAM_H
+#endif // MTLS_MPROXY_TRANSPORT_SERVER_STREAM_H

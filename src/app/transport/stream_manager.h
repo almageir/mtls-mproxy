@@ -1,38 +1,40 @@
-#ifndef STREAM_MANAGER_H
-#define STREAM_MANAGER_H
+#ifndef MTLS_MPROXY_TRANSPORT_STREAM_MANAGER_H
+#define MTLS_MPROXY_TRANSPORT_STREAM_MANAGER_H
 
 #include "server_stream.h"
 #include "client_stream.h"
 
-class stream_manager
-    : public std::enable_shared_from_this<stream_manager>
+namespace mtls_mproxy
 {
-public:
-    virtual ~stream_manager() = default;
-    // Common interface
-    virtual void stop(stream_ptr ptr) = 0;
-    virtual void stop(int id) = 0;
-    virtual void on_close(stream_ptr stream) = 0;
+    class StreamManager
+        : public std::enable_shared_from_this<StreamManager>
+    {
+    public:
+        virtual ~StreamManager() = default;
+        // Common interface
+        virtual void stop(stream_ptr ptr) = 0;
+        virtual void stop(int id) = 0;
+        virtual void on_close(stream_ptr stream) = 0;
 
-    // Passive session interface
-    virtual void on_accept(server_stream_ptr ptr) = 0;
-    virtual void on_read(io_buffer event, server_stream_ptr stream) = 0;
-    virtual void on_write(io_buffer event, server_stream_ptr stream) = 0;
-    virtual void on_error(net::error_code ec, server_stream_ptr stream) = 0;
-    virtual void read_server(int id) = 0;
-    virtual void write_server(int id, io_buffer event) = 0;
+        // Passive session interface
+        virtual void on_accept(ServerStreamPtr ptr) = 0;
+        virtual void on_read(IoBuffer event, ServerStreamPtr stream) = 0;
+        virtual void on_write(IoBuffer event, ServerStreamPtr stream) = 0;
+        virtual void on_error(net::error_code ec, ServerStreamPtr stream) = 0;
+        virtual void read_server(int id) = 0;
+        virtual void write_server(int id, IoBuffer event) = 0;
 
-    // Active session interface
-    virtual void on_connect(io_buffer event, client_stream_ptr stream) = 0;
-    virtual void on_read(io_buffer event, client_stream_ptr stream) = 0;
-    virtual void on_write(io_buffer event, client_stream_ptr stream) = 0;
-    virtual void on_error(net::error_code ec, client_stream_ptr stream) = 0;
-    virtual void read_client(int id) = 0;
-    virtual void write_client(int id, io_buffer event) = 0;
-    virtual void connect(int id, std::string host, std::string service) = 0;
-};
+        // Active session interface
+        virtual void on_connect(IoBuffer event, ClientStreamPtr stream) = 0;
+        virtual void on_read(IoBuffer event, ClientStreamPtr stream) = 0;
+        virtual void on_write(IoBuffer event, ClientStreamPtr stream) = 0;
+        virtual void on_error(net::error_code ec, ClientStreamPtr stream) = 0;
+        virtual void read_client(int id) = 0;
+        virtual void write_client(int id, IoBuffer event) = 0;
+        virtual void connect(int id, std::string host, std::string service) = 0;
+    };
 
-using stream_manager_ptr = std::shared_ptr<stream_manager>;
+    using StreamManagerPtr = std::shared_ptr<StreamManager>;
+}
 
-
-#endif // STREAM_MANAGER_H
+#endif // MTLS_MPROXY_TRANSPORT_STREAM_MANAGER_H

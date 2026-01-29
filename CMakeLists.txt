@@ -1,6 +1,10 @@
-cmake_minimum_required(VERSION 4.1)
+cmake_minimum_required(VERSION 3.21)
 
 project(mtls-mproxy)
+
+configure_file(${PROJECT_SOURCE_DIR}/config/test-ca.pem ${CMAKE_CURRENT_BINARY_DIR}/test-ca.pem COPYONLY)
+configure_file(${PROJECT_SOURCE_DIR}/config/test-server-cert.pem ${CMAKE_CURRENT_BINARY_DIR}/test-server-cert.pem COPYONLY)
+configure_file(${PROJECT_SOURCE_DIR}/config/test-server-key.pem ${CMAKE_CURRENT_BINARY_DIR}/test-server-key.pem COPYONLY)
 
 if(WIN32)
     set(OPENSSL_USE_STATIC_LIBS     TRUE)
@@ -80,14 +84,14 @@ target_sources(mtls-mproxy
         src/app/http/http_stream_manager.cpp
 
         # Socks5 proxy
-        src/app/socks5/socks5.h
-        src/app/socks5/socks5.cpp
-        src/app/socks5/socks5_session.h
-        src/app/socks5/socks5_session.cpp
-        src/app/socks5/socks5_state.h
-        src/app/socks5/socks5_state.cpp
-        src/app/socks5/socks5_stream_manager.h
-        src/app/socks5/socks5_stream_manager.cpp
+        src/app/socks/socks.h
+        src/app/socks/socks.cpp
+        src/app/socks/socks_session.h
+        src/app/socks/socks_session.cpp
+        src/app/socks/socks_state.h
+        src/app/socks/socks_state.cpp
+        src/app/socks/socks_stream_manager.h
+        src/app/socks/socks_stream_manager.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/app)

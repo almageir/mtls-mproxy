@@ -1,10 +1,13 @@
-#ifndef io_buffer_h__
-#define io_buffer_h__
+#ifndef MTLS_MPROXY_TRANSPORT_IO_BUFFER_H
+#define MTLS_MPROXY_TRANSPORT_IO_BUFFER_H
 
 #include <cstdint>
 #include <vector>
 
-using io_buffer = std::vector<std::uint8_t>;
+namespace mtls_mproxy
+{
+    using IoBuffer = std::vector<std::uint8_t>;
+}
 
-#endif // io_buffer_h__
+#endif // MTLS_MPROXY_TRANSPORT_IO_BUFFER_H
 

@@ -1,5 +1,5 @@
-#ifndef TCP_CLIENT_STREAM_H
-#define TCP_CLIENT_STREAM_H
+#ifndef MTLS_MPROXY_TRANSPORT_TCP_CLIENT_STREAM_H
+#define MTLS_MPROXY_TRANSPORT_TCP_CLIENT_STREAM_H
 
 #include "client_stream.h"
 
@@ -7,39 +7,45 @@
 
 #include <asynclog/logger_factory.h>
 
-namespace net = asio;
-using tcp = asio::ip::tcp;
-
-class tcp_client_stream final : public client_stream
+namespace mtls_mproxy
 {
-public:
-    tcp_client_stream(const stream_manager_ptr& ptr, int id, net::io_context& ctx, asynclog::LoggerFactory log_factory);
-    ~tcp_client_stream() override;
+    namespace net = asio;
+    using tcp = asio::ip::tcp;
 
-private:
-    void do_start() override;
-    void do_stop() override;
+    class TcpClientStream final : public ClientStream
+    {
+    public:
+        TcpClientStream(const StreamManagerPtr& ptr,
+                        int id,
+                        net::any_io_executor ctx,
+                        const asynclog::LoggerFactory& log_factory);
+        ~TcpClientStream() override;
 
-    void do_connect(tcp::resolver::results_type&& results);
+    private:
+        void do_start() override;
+        void do_stop() override;
 
-    void do_read() override;
-    void do_write(io_buffer event) override;
+        void do_connect(tcp::resolver::results_type&& results);
 
-    void handle_error(const net::error_code& ec);
+        void do_read() override;
+        void do_write(IoBuffer event) override;
 
-    void do_set_host(std::string host) override;
-    void do_set_service(std::string service) override;
+        void handle_error(const net::error_code& ec);
 
-    tcp::socket socket_;
-    tcp::resolver resolver_;
+        void do_set_host(std::string host) override;
+        void do_set_service(std::string service) override;
 
-    asynclog::ScopedLogger logger_;
+        tcp::socket socket_;
+        tcp::resolver resolver_;
 
-    std::string host_;
-    std::string port_;
+        asynclog::ScopedLogger logger_;
 
-    std::array<std::uint8_t, max_buffer_size> read_buffer_;
-    std::array<std::uint8_t, max_buffer_size> write_buffer_;
-};
+        std::string host_;
+        std::string port_;
 
-#endif //TCP_CLIENT_STREAM_H
+        std::array<std::uint8_t, max_buffer_size> read_buffer_;
+        std::array<std::uint8_t, max_buffer_size> write_buffer_;
+    };
+}
+
+#endif // MTLS_MPROXY_TRANSPORT_TCP_CLIENT_STREAM_H

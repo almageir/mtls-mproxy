@@ -1,0 +1,56 @@
+#ifndef MTLS_MPROXY_SOCKS_STREAM_MANAGER_H
+#define MTLS_MPROXY_SOCKS_STREAM_MANAGER_H
+
+#include "transport/stream_manager.h"
+#include "socks_session.h"
+
+#include <asynclog/logger_factory.h>
+
+namespace mtls_mproxy
+{
+    class SocksStreamManager final
+        : public StreamManager
+    {
+    public:
+        explicit SocksStreamManager(asynclog::LoggerFactory log_factory);
+        ~SocksStreamManager() override = default;
+
+        SocksStreamManager(const SocksStreamManager& other) = delete;
+        SocksStreamManager& operator=(const SocksStreamManager& other) = delete;
+
+        void stop(stream_ptr stream) override;
+        void stop(int id) override;
+        void on_close(stream_ptr stream) override;
+
+        void on_accept(ServerStreamPtr stream) override;
+        void on_read(IoBuffer buffer, ServerStreamPtr stream) override;
+        void on_write(IoBuffer buffer, ServerStreamPtr stream) override;
+        void on_error(net::error_code ec, ServerStreamPtr stream) override;
+        void read_server(int id) override;
+        void write_server(int id, IoBuffer buffer) override;
+
+        void on_connect(IoBuffer buffer, ClientStreamPtr stream) override;
+        void on_read(IoBuffer buffer, ClientStreamPtr stream) override;
+        void on_write(IoBuffer buffer, ClientStreamPtr stream) override;
+        void on_error(net::error_code ec, ClientStreamPtr stream) override;
+        void read_client(int id) override;
+        void write_client(int id, IoBuffer buffer) override;
+        void connect(int id, std::string host, std::string service) override;
+
+    private:
+        struct SocksPair {
+            int id;
+            ServerStreamPtr server;
+            ClientStreamPtr client;
+            SocksSession session;
+        };
+
+        std::unordered_map<int, SocksPair> sessions_;
+        asynclog::LoggerFactory logger_factory_;
+        asynclog::ScopedLogger logger_;
+    };
+
+    using socks5_stream_manager_ptr = std::shared_ptr<SocksStreamManager>;
+}
+
+#endif // MTLS_MPROXY_SOCKS_STREAM_MANAGER_H

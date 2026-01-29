@@ -1,8 +1,7 @@
-#ifndef HTTP_HPP
-#define HTTP_HPP
+#ifndef MTLS_MPROXY_HTTP_HPP
+#define MTLS_MPROXY_HTTP_HPP
 
 #include <iostream>
-#include <cstdint>
 
 namespace http
 {
@@ -34,4 +33,4 @@ namespace http
 };
 
 
-#endif //HTTP_HPP
+#endif // MTLS_MPROXY_HTTP_HPP

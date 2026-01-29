@@ -1,5 +1,5 @@
-#ifndef TCP_SERVER_STREAM_H
-#define TCP_SERVER_STREAM_H
+#ifndef MTLS_MPROXY_TRANSPORT_TCP_SERVER_STREAM_H
+#define MTLS_MPROXY_TRANSPORT_TCP_SERVER_STREAM_H
 
 #include "transport/server_stream.h"
 
@@ -7,32 +7,36 @@
 
 #include "asynclog/logger_factory.h"
 
-namespace net = asio;
-using tcp = asio::ip::tcp;
-
-class tcp_server_stream final : public server_stream
+namespace mtls_mproxy
 {
-public:
-    tcp_server_stream(const stream_manager_ptr& ptr, int id, net::io_context& ctx, asynclog::LoggerFactory log_factory);
-    ~tcp_server_stream() override;
+    namespace net = asio;
+    using tcp = asio::ip::tcp;
 
-    net::io_context& context() override;
-    tcp::socket& socket();
-private:
-    void do_start() final;
-    void do_stop() final;
-    void do_read() final;
-    void do_write(io_buffer event) final;
+    class tcp_server_stream final : public ServerStream
+    {
+    public:
+        tcp_server_stream(const StreamManagerPtr& ptr,
+                          int id,
+                          tcp::socket&& socket,
+                          const asynclog::LoggerFactory& log_factory);
+        ~tcp_server_stream() override;
 
-    void handle_error(const net::error_code& ec);
+        net::any_io_executor executor() override;
+        tcp::socket& socket();
+    private:
+        void do_start() override;
+        void do_stop() override;
+        void do_read() override;
+        void do_write(IoBuffer event) override;
 
-    net::io_context& ctx_;
-    tcp::socket socket_;
+        void handle_error(const net::error_code& ec);
 
-    asynclog::ScopedLogger logger_;
+        tcp::socket socket_;
+        asynclog::ScopedLogger logger_;
 
-    std::array<std::uint8_t, max_buffer_size> read_buffer_;
-    std::array<std::uint8_t, max_buffer_size> write_buffer_;
-};
+        std::array<std::uint8_t, max_buffer_size> read_buffer_;
+        std::array<std::uint8_t, max_buffer_size> write_buffer_;
+    };
+}
 
-#endif //TCP_SERVER_STREAM_H
+#endif // MTLS_MPROXY_TRANSPORT_TCP_SERVER_STREAM_H

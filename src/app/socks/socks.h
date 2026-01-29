@@ -1,33 +1,17 @@
-#ifndef SOCKS5_HPP
-#define SOCKS5_HPP
+#ifndef MTLS_MPROXY_SOCKS_H
+#define MTLS_MPROXY_SOCKS_H
 
 #include <iostream>
 #include <cstdint>
 #include <optional>
 
 namespace proto {
-    namespace auth {
-        enum : std::uint8_t {
-            kNoAuth = 0x00,
-            kGssApi = 0x01,
-            kUserPass = 0x02,
-            kNotSupported = 0xff,
-            kMaxNumberOfMethods = 0xff,
-            kHeaderMinlength = 0x02,
-        };
+    constexpr std::int8_t IPV4_ADDR_SIZE = 4;
+    constexpr std::int8_t IPV6_ADDR_SIZE = 16;
+    constexpr std::int8_t TCP_PORT_SIZE = 2;
 
-        struct request {
-            std::uint8_t version;
-            std::uint8_t number_of_methods;
-            std::uint8_t methods[auth::kMaxNumberOfMethods];
-        };
-    }
-}
-
-class socks5
-{
-public:
-    enum proto {
+    enum
+    {
         version = 0x05,
         ipv4 = 0x01,
         dom = 0x03,
@@ -39,21 +23,29 @@ public:
         dom_length_field_offset = 0,
         dom_field_offset = 1,
 
-        port_length = 2,
-        ipv4_length = 4,
-        ipv6_length = 16,
-
-        request_header_min_length = 10,
-        max_host_info_size = max_dom_length + dom_length_field_size + port_length
+        request_header_min_length = 10
     };
 
-    enum request : std::uint8_t {
+    enum AuthMethod : std::uint8_t {
+        NoAuth = 0x00,
+        GssApi = 0x01,
+        UserPass = 0x02,
+        NotSupported = 0xff,
+        MaxNumberOfMethods = 0xff,
+        HeaderMinlength = 0x02,
+    };
+}
+
+class Socks
+{
+public:
+    enum Request : std::uint8_t {
         tcp_connection = 0x01,
         tcp_port = 0x02,
         udp_port = 0x03
     };
 
-    enum responses : std::uint8_t {
+    enum Responses : std::uint8_t {
         succeeded = 0x00,
         general_socks_server_failure = 0x01,
         connection_not_allowed_by_ruleset = 0x02,
@@ -65,22 +57,27 @@ public:
         address_type_not_supported = 0x08
     };
 
-    struct request_header {
+    static constexpr int kMaxHostInfoSize = proto::max_dom_length + proto::dom_length_field_size + proto::TCP_PORT_SIZE;
+
+    struct RequestHeader {
         std::uint8_t version;
         std::uint8_t command;
         std::uint8_t reserved;
         std::uint8_t type;
-        std::uint8_t data[max_host_info_size];
+        std::uint8_t data[kMaxHostInfoSize];
+    };
+
+    struct AuthRequestHeader {
+        std::uint8_t version;
+        std::uint8_t number_of_methods;
+        std::uint8_t methods[proto::AuthMethod::MaxNumberOfMethods];
     };
 
     static std::optional<std::string> is_socks5_auth_request(const std::uint8_t* buffer, std::size_t length);
-
     static bool is_valid_request_packet(const std::uint8_t* buffer, std::size_t length);
-
     static bool get_remote_address_info(const std::uint8_t* buffer, std::size_t length, std::string& host, std::string& port);
-
     static uint16_t get_port_from_binary(const std::uint8_t* buffer);
 };
 
 
-#endif // SOCKS5_HPP
+#endif // MTLS_MPROXY_SOCKS_H

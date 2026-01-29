@@ -3,95 +3,97 @@
 
 #include <utility>
 
-http_session::http_session(int id, stream_manager_ptr mgr, asynclog::LoggerFactory log_factory)
-    : context_{id}, manager_{std::move(mgr)}, log_factory_{log_factory}
-    , logger_{log_factory_.create("http_session")}
+namespace mtls_mproxy
 {
-    state_ = http_wait_request::instance();
-}
+    HttpSession::HttpSession(int id, StreamManagerPtr mgr, asynclog::LoggerFactory logger_factory)
+        : context_{id}, manager_{std::move(mgr)}
+        , logger_{logger_factory.create("http_session")}
+    {
+        state_ = HttpWaitRequest::instance();
+    }
 
-void http_session::change_state(std::unique_ptr<http_state> state)
-{
-    state_ = std::move(state);
-}
+    void HttpSession::change_state(std::unique_ptr<HttpState> state)
+    {
+        state_ = std::move(state);
+    }
 
-void http_session::handle_server_read(io_buffer &event)
-{
-    state_->handle_server_read(this, event);
-}
+    void HttpSession::handle_server_read(IoBuffer& event)
+    {
+        state_->handle_server_read(*this, event);
+    }
 
-void http_session::handle_client_read(io_buffer &event)
-{
-    state_->handle_client_read(this, event);
-}
+    void HttpSession::handle_client_read(IoBuffer& event)
+    {
+        state_->handle_client_read(*this, event);
+    }
 
-void http_session::handle_server_write(io_buffer &event)
-{
-    state_->handle_server_write(this, event);
-}
+    void HttpSession::handle_server_write(IoBuffer& event)
+    {
+        state_->handle_server_write(*this, event);
+    }
 
-void http_session::handle_client_write(io_buffer &event)
-{
-    state_->handle_client_write(this, event);
-}
+    void HttpSession::handle_client_write(IoBuffer& event)
+    {
+        state_->handle_client_write(*this, event);
+    }
 
-void http_session::handle_client_connect(io_buffer &event)
-{
-    state_->handle_client_connect(this, event);
-}
+    void HttpSession::handle_client_connect(IoBuffer& event)
+    {
+        state_->handle_client_connect(*this, event);
+    }
 
-void http_session::handle_server_error(net::error_code ec)
-{
-    state_->handle_server_error(this, ec);
-}
+    void HttpSession::handle_server_error(net::error_code ec)
+    {
+        state_->handle_server_error(*this, ec);
+    }
 
-void http_session::handle_client_error(net::error_code ec)
-{
-    state_->handle_client_error(this, ec);
-}
+    void HttpSession::handle_client_error(net::error_code ec)
+    {
+        state_->handle_client_error(*this, ec);
+    }
 
-void http_session::update_bytes_sent_to_remote(std::size_t count)
-{
-	context().transferred_bytes_to_remote += count;
-}
+    void HttpSession::update_bytes_sent_to_remote(std::size_t count)
+    {
+        context().transferred_bytes_to_remote += count;
+    }
 
-void http_session::update_bytes_sent_to_local(std::size_t count)
-{
-	context().transferred_bytes_to_local += count;
-}
+    void HttpSession::update_bytes_sent_to_local(std::size_t count)
+    {
+        context().transferred_bytes_to_local += count;
+    }
 
-stream_manager_ptr http_session::manager()
-{
-    return manager_;
-}
+    StreamManagerPtr HttpSession::manager()
+    {
+        return manager_;
+    }
 
-void http_session::connect()
-{
-	manager()->connect(id(), std::string{ host() }, std::string{ service() });
-}
+    void HttpSession::connect()
+    {
+        manager()->connect(id(), std::string{host()}, std::string{service()});
+    }
 
-void http_session::stop()
-{
-	manager()->stop(id());
-}
+    void HttpSession::stop()
+    {
+        manager()->stop(id());
+    }
 
-void http_session::read_from_server()
-{
-	manager()->read_server(id());
-}
+    void HttpSession::read_from_server()
+    {
+        manager()->read_server(id());
+    }
 
-void http_session::read_from_client()
-{
-	manager()->read_client(id());
-}
+    void HttpSession::read_from_client()
+    {
+        manager()->read_client(id());
+    }
 
-void http_session::write_to_client(io_buffer buffer)
-{
-	manager()->write_client(id(), std::move(buffer));
-}
+    void HttpSession::write_to_client(IoBuffer buffer)
+    {
+        manager()->write_client(id(), std::move(buffer));
+    }
 
-void http_session::write_to_server(io_buffer buffer)
-{
-	manager()->write_server(id(), std::move(buffer));
+    void HttpSession::write_to_server(IoBuffer buffer)
+    {
+        manager()->write_server(id(), std::move(buffer));
+    }
 }
-

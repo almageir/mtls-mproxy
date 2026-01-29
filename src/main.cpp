@@ -1,6 +1,6 @@
 #include "transport/tcp/server.h"
 #include "transport/tls/tls_server.h"
-#include "socks5/socks5_stream_manager.h"
+#include "socks/socks_stream_manager.h"
 #include "http/http_stream_manager.h"
 
 #include <asynclog/log_manager.h>
@@ -19,7 +19,7 @@ namespace
         std::string proxy_backend;
         std::string log_file_path;
         int log_level;
-        tls_server::tls_options tls_options;
+        mtls_mproxy::TlsServer::TlsOptions tls_options;
     };
 
     std::optional<server_conf> parse_command_line_arguments(int argc, char* argv[])
@@ -82,6 +82,10 @@ namespace
 
 int main(int argc, char* argv[])
 {
+#ifdef _WIN32
+    std::locale::global(std::locale(""));
+#endif
+
     const auto serv_conf = parse_command_line_arguments(argc, argv);
     if (!serv_conf.has_value()) {
         std::cerr << "Program finished..." << std::endl;
@@ -96,19 +100,21 @@ int main(int argc, char* argv[])
     asl::LoggerFactory log_factory(log_backend);
     const auto logger = log_factory.create("Application");
 
+    using namespace mtls_mproxy;
+
     try {
-        stream_manager_ptr proxy_backend;
+        StreamManagerPtr proxy_backend;
         if (conf.proxy_backend == "http") {
             logger.info("Proxy-mode: http/s");
-            proxy_backend = std::make_shared<http_stream_manager>(log_factory);
+            proxy_backend = std::make_shared<HttpStreamManager>(log_factory);
         } else {
             logger.info("Proxy-mode: socks5/s");
-            proxy_backend = std::make_shared<socks5_stream_manager>(log_factory);
+            proxy_backend = std::make_shared<SocksStreamManager>(log_factory);
         }
 
         if (!conf.tls_options.private_key.empty()) {
             logger.info(std::format("Start listening on port: {}, tls tunnel mode enabled", conf.listen_port));
-            tls_server srv(conf.listen_port, conf.tls_options, std::move(proxy_backend), log_factory);
+            TlsServer srv(conf.listen_port, conf.tls_options, std::move(proxy_backend), log_factory);
             srv.run();
         } else {
             logger.info(std::format("Start listening on port: {}, tls tunnel mode disabled", conf.listen_port));

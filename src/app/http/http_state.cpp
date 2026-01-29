@@ -5,6 +5,8 @@
 
 namespace
 {
+    namespace net = asio;
+
     const std::string kHttpError500 =
         "HTTP/1.1 500 Internal Server Error\r\n"
         "Connection : Closed\r\n"
@@ -14,7 +16,7 @@ namespace
         "HTTP/1.1 200 OK\r\n"
         "\r\n";
 
-    std::string log_error(http_session* session, net::error_code ec, std::string_view participant)
+    std::string check_errors(mtls_mproxy::HttpSession& session, net::error_code ec, std::string_view participant)
     {
         const auto error = ec.value();
         const auto msg = ec.message();
@@ -27,7 +29,7 @@ namespace
                   error == net::error::timed_out ||
                   error == net::error::operation_aborted ||
                   error == net::error::bad_descriptor)) {
-                  return std::format("[{}] {} side session error: {}", session->id(),participant, msg);
+                  return std::format("[{}] {} side session error: {}", session.id(),participant, msg);
             }
         }
 
@@ -35,105 +37,110 @@ namespace
     }
 }
 
-void http_state::handle_server_read(http_session* session, io_buffer buffer) {}
-void http_state::handle_client_read(http_session* session, io_buffer buffer) {}
-void http_state::handle_client_connect(http_session* session, io_buffer buffer) {}
-void http_state::handle_server_write(http_session* session, io_buffer buffer) {}
-void http_state::handle_client_write(http_session* session, io_buffer buffer) {}
-
-void http_state::handle_server_error(http_session* session, net::error_code ec)
+namespace mtls_mproxy
 {
-    auto error = log_error(session, ec, "server");
-    session->logger().warn(error);
-    session->stop();
-}
+    void HttpState::handle_server_read(HttpSession& session, IoBuffer buffer) {}
+    void HttpState::handle_client_read(HttpSession& session, IoBuffer buffer) {}
+    void HttpState::handle_client_connect(HttpSession& session, IoBuffer buffer) {}
+    void HttpState::handle_server_write(HttpSession& session, IoBuffer buffer) {}
+    void HttpState::handle_client_write(HttpSession& session, IoBuffer buffer) {}
 
-void http_state::handle_client_error(http_session* session, net::error_code ec)
-{
-    auto error = log_error(session, ec, "client");
-    session->logger().warn(error);
-    session->stop();
-}
-
-void http_wait_request::handle_server_read(http_session* session, io_buffer buffer)
-{
-    const auto sid = session->id();
-    const auto* req_str = reinterpret_cast<const char*>(buffer.data());
-
-    auto http_req = http::get_headers(std::string_view{req_str, buffer.size()});
-    const auto host = http_req.get_host();
-    const auto service = http_req.get_service();
-
-    if (host.empty()) {
-        session->logger().warn(std::format("[{}] http protocol: bad request packet", sid));
-        session->write_to_server(io_buffer{kHttpError500.begin(), kHttpError500.end()});
-        session->stop();
-        return;
+    void HttpState::handle_server_error(HttpSession& session, net::error_code ec)
+    {
+        const auto errors = check_errors(session, ec, "server");
+        if (!errors.empty())
+            session.logger().warn(errors);
+        session.stop();
     }
 
-    if (service.empty()) {
-        session->logger().warn(std::format("[{}] http protocol: bad remote address format", sid));
-        session->write_to_server(io_buffer{kHttpError500.begin(), kHttpError500.end()});
-        session->stop();
-        return;
+    void HttpState::handle_client_error(HttpSession& session, net::error_code ec)
+    {
+        const auto errors = check_errors(session, ec, "client");
+        if (!errors.empty())
+            session.logger().warn(errors);
+        session.stop();
     }
 
-    if (http_req.method == http::kConnect)
-        session->set_response(io_buffer{kHttpDone.begin(), kHttpDone.end()});
-    else
-        session->set_response(std::move(buffer));
+    void HttpWaitRequest::handle_server_read(HttpSession& session, IoBuffer buffer)
+    {
+        const auto sid = session.id();
+        const auto* req_str = reinterpret_cast<const char*>(buffer.data());
 
-    session->set_endpoint_info(host, service);
+        auto http_req = http::get_headers(std::string_view{req_str, buffer.size()});
+        const auto host = http_req.get_host();
+        const auto service = http_req.get_service();
 
-    session->logger().info(std::format("[{}] requested [{}:{}]", sid, host, service));
-    session->connect();
-    session->change_state(http_connection_established::instance());
-}
+        if (host.empty()) {
+            session.logger().warn(std::format("[{}] http protocol: bad request packet", sid));
+            session.write_to_server(IoBuffer{kHttpError500.begin(), kHttpError500.end()});
+            session.stop();
+            return;
+        }
 
-void http_connection_established::handle_client_connect(http_session* session, io_buffer buffer)
-{
-    // TODO
-    const std::string resp{session->get_response().begin(), session->get_response().end()};
-	if (resp == kHttpDone)
-		session->write_to_server(session->get_response());
-	else
-		session->write_to_client(session->get_response());
-	session->change_state(http_ready_to_transfer_data::instance());
-}
+        if (service.empty()) {
+            session.logger().warn(std::format("[{}] http protocol: bad remote address format", sid));
+            session.write_to_server(IoBuffer{kHttpError500.begin(), kHttpError500.end()});
+            session.stop();
+            return;
+        }
 
-void http_ready_to_transfer_data::handle_client_write(http_session* session, io_buffer buffer)
-{
-    session->read_from_server();
-    session->read_from_server();
-    session->change_state(http_data_transfer_mode::instance());
-}
+        if (http_req.method == http::kConnect)
+            session.set_response(IoBuffer{kHttpDone.begin(), kHttpDone.end()});
+        else
+            session.set_response(std::move(buffer));
 
-void http_ready_to_transfer_data::handle_server_write(http_session* session, io_buffer buffer)
-{
-    session->read_from_server();
-    session->read_from_client();
-    session->change_state(http_data_transfer_mode::instance());
-}
+        session.set_endpoint_info(host, service);
+
+        session.logger().info(std::format("[{}] requested [{}:{}]", sid, host, service));
+        session.connect();
+        session.change_state(HttpConnectionEstablished::instance());
+    }
+
+    void HttpConnectionEstablished::handle_client_connect(HttpSession& session, IoBuffer buffer)
+    {
+        // TODO
+        const std::string resp{session.get_response().begin(), session.get_response().end()};
+        if (resp == kHttpDone)
+            session.write_to_server(session.get_response());
+        else
+            session.write_to_client(session.get_response());
+        session.change_state(HttpReadyTransferData::instance());
+    }
+
+    void HttpReadyTransferData::handle_client_write(HttpSession& session, IoBuffer buffer)
+    {
+        session.read_from_server();
+        session.read_from_server();
+        session.change_state(HttpDataTransferMode::instance());
+    }
+
+    void HttpReadyTransferData::handle_server_write(HttpSession& session, IoBuffer buffer)
+    {
+        session.read_from_server();
+        session.read_from_client();
+        session.change_state(HttpDataTransferMode::instance());
+    }
 
 
-void http_data_transfer_mode::handle_server_write(http_session* session, io_buffer buffer)
-{
-    session->read_from_client();
-}
+    void HttpDataTransferMode::handle_server_write(HttpSession& session, IoBuffer buffer)
+    {
+        session.read_from_client();
+    }
 
-void http_data_transfer_mode::handle_server_read(http_session* session, io_buffer buffer)
-{
-    session->update_bytes_sent_to_remote(buffer.size());
-    session->write_to_client(std::move(buffer));
-}
+    void HttpDataTransferMode::handle_server_read(HttpSession& session, IoBuffer buffer)
+    {
+        session.update_bytes_sent_to_remote(buffer.size());
+        session.write_to_client(std::move(buffer));
+    }
 
-void http_data_transfer_mode::handle_client_write(http_session* session, io_buffer buffer)
-{
-    session->read_from_server();
-}
+    void HttpDataTransferMode::handle_client_write(HttpSession& session, IoBuffer buffer)
+    {
+        session.read_from_server();
+    }
 
-void http_data_transfer_mode::handle_client_read(http_session* session, io_buffer buffer)
-{
-    session->update_bytes_sent_to_local(buffer.size());
-    session->write_to_server(std::move(buffer));
+    void HttpDataTransferMode::handle_client_read(HttpSession& session, IoBuffer buffer)
+    {
+        session.update_bytes_sent_to_local(buffer.size());
+        session.write_to_server(std::move(buffer));
+    }
 }

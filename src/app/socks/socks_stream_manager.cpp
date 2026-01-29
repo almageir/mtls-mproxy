@@ -1,20 +1,20 @@
-#include "http_stream_manager.h"
+#include "socks_stream_manager.h"
 #include "transport/tcp_client_stream.h"
 
 namespace mtls_mproxy
 {
-    HttpStreamManager::HttpStreamManager(asynclog::LoggerFactory log_factory)
+    SocksStreamManager::SocksStreamManager(asynclog::LoggerFactory log_factory)
         : logger_factory_{log_factory}
-        , logger_{logger_factory_.create("http_session_manager")}
+        , logger_{logger_factory_.create("socks5_session_manager")}
     {
     }
 
-    void HttpStreamManager::stop(stream_ptr stream)
+    void SocksStreamManager::stop(stream_ptr stream)
     {
         stop(stream->id());
     }
 
-    void HttpStreamManager::stop(int id)
+    void SocksStreamManager::stop(int id)
     {
         if (auto it = sessions_.find(id); it != sessions_.end()) {
             it->second.client->stop();
@@ -34,24 +34,24 @@ namespace mtls_mproxy
         }
     }
 
-    void HttpStreamManager::on_close(stream_ptr stream)
+    void SocksStreamManager::on_close(stream_ptr stream)
     {
         stop(stream);
     }
 
-    void HttpStreamManager::on_error(net::error_code ec, ServerStreamPtr stream)
+    void SocksStreamManager::on_error(net::error_code ec, ServerStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_server_error(ec);
     }
 
-    void HttpStreamManager::on_error(net::error_code ec, ClientStreamPtr stream)
+    void SocksStreamManager::on_error(net::error_code ec, ClientStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_error(ec);
     }
 
-    void HttpStreamManager::on_accept(ServerStreamPtr upstream)
+    void SocksStreamManager::on_accept(ServerStreamPtr upstream)
     {
         upstream->start();
 
@@ -60,66 +60,66 @@ namespace mtls_mproxy
 
         auto downstream = std::make_shared<TcpClientStream>(shared_from_this(), id, upstream->executor(), logger_factory_);
 
-        HttpSession session{id, shared_from_this(), logger_factory_};
-        HttpPair pair{id, std::move(upstream), std::move(downstream), std::move(session)};
+        SocksSession session{id, shared_from_this(), logger_factory_};
+        SocksPair pair{id, std::move(upstream), std::move(downstream), std::move(session)};
         sessions_.insert({id, std::move(pair)});
     }
 
-    void HttpStreamManager::on_read(IoBuffer buffer, ServerStreamPtr stream)
+    void SocksStreamManager::on_read(IoBuffer buffer, ServerStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_server_read(buffer);
     }
 
-    void HttpStreamManager::on_write(IoBuffer buffer, ServerStreamPtr stream)
+    void SocksStreamManager::on_write(IoBuffer buffer, ServerStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_server_write(buffer);
     }
 
-    void HttpStreamManager::read_server(int id)
+    void SocksStreamManager::read_server(int id)
     {
         if (auto it = sessions_.find(id); it != sessions_.end())
             it->second.server->read();
     }
 
-    void HttpStreamManager::write_server(int id, IoBuffer buffer)
+    void SocksStreamManager::write_server(int id, IoBuffer buffer)
     {
         if (auto it = sessions_.find(id); it != sessions_.end())
             it->second.server->write(std::move(buffer));
     }
 
-    void HttpStreamManager::on_read(IoBuffer buffer, ClientStreamPtr stream)
+    void SocksStreamManager::on_read(IoBuffer buffer, ClientStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_read(buffer);
     }
 
-    void HttpStreamManager::on_write(IoBuffer buffer, ClientStreamPtr stream)
+    void SocksStreamManager::on_write(IoBuffer buffer, ClientStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_write(buffer);
     }
 
-    void HttpStreamManager::on_connect(IoBuffer buffer, ClientStreamPtr stream)
+    void SocksStreamManager::on_connect(IoBuffer buffer, ClientStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_connect(buffer);
     }
 
-    void HttpStreamManager::read_client(int id)
+    void SocksStreamManager::read_client(int id)
     {
         if (auto it = sessions_.find(id); it != sessions_.end())
             it->second.client->read();
     }
 
-    void HttpStreamManager::write_client(int id, IoBuffer buffer)
+    void SocksStreamManager::write_client(int id, IoBuffer buffer)
     {
         if (auto it = sessions_.find(id); it != sessions_.end())
             it->second.client->write(std::move(buffer));
     }
 
-    void HttpStreamManager::connect(int id, std::string host, std::string service)
+    void SocksStreamManager::connect(int id, std::string host, std::string service)
     {
         if (auto it = sessions_.find(id); it != sessions_.end()) {
             it->second.client->set_host(std::move(host));

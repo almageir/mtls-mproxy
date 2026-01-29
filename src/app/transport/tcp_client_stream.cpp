@@ -3,6 +3,9 @@
 
 namespace
 {
+    namespace net = asio;
+    using tcp = asio::ip::tcp;
+
     enum : std::int32_t { eRemote, eLocal };
     std::string ep_to_str(const tcp::socket& sock, std::int32_t dir)
     {
@@ -23,89 +26,97 @@ namespace
     }
 }
 
-tcp_client_stream::tcp_client_stream(const stream_manager_ptr& ptr,
-    int id, net::io_context& ctx,
-    asynclog::LoggerFactory logger_factory)
-    : client_stream{ptr, id}
-    , socket_{ctx}
-    , resolver_{ctx}
-    , logger_{logger_factory.create("tcp_client")}
-    , read_buffer_{}, write_buffer_{}
-{}
-
-tcp_client_stream::~tcp_client_stream()
+namespace mtls_mproxy
 {
-    logger_.debug(std::format("[{}] tcp client stream closed ({}:{})", id(), host_, port_));
-}
+    TcpClientStream::TcpClientStream(const StreamManagerPtr& ptr,
+                                     int id, net::any_io_executor ctx,
+                                     const asynclog::LoggerFactory& logger_factory)
+        : ClientStream{ptr, id}
+        , socket_{ctx}
+        , resolver_{ctx}
+        , logger_{logger_factory.create("tcp_client")}
+        , read_buffer_{}, write_buffer_{}
+    {
+    }
 
-void tcp_client_stream::do_start()
-{
-    resolver_.async_resolve(
-        host_, port_,
-        [this, self{shared_from_this()}] (const net::error_code& ec, tcp::resolver::results_type results) {
+    TcpClientStream::~TcpClientStream()
+    {
+        logger_.debug(std::format("[{}] tcp client stream closed ({}:{})", id(), host_, port_));
+    }
+
+    void TcpClientStream::do_start()
+    {
+        resolver_.async_resolve(
+            host_, port_,
+            [this, self{shared_from_this()}](const net::error_code& ec, tcp::resolver::results_type results) {
             if (!ec) {
                 do_connect(std::move(results));
-            } else {
+            }
+            else {
                 handle_error(ec);
             }
         });
-}
+    }
 
-void tcp_client_stream::do_stop()
-{
-    net::error_code ignored_ec;
-    socket_.shutdown(tcp::socket::shutdown_both, ignored_ec);
-}
+    void TcpClientStream::do_stop()
+    {
+        net::error_code ignored_ec;
+        socket_.shutdown(tcp::socket::shutdown_both, ignored_ec);
+    }
 
-void tcp_client_stream::do_connect(tcp::resolver::results_type&& results)
-{
-    net::async_connect(
-        socket_, results,
-        [this, self{shared_from_this()}](const net::error_code& ec, const tcp::endpoint& ep) {
+    void TcpClientStream::do_connect(tcp::resolver::results_type&& results)
+    {
+        net::async_connect(
+            socket_, results,
+            [this, self{shared_from_this()}](const net::error_code& ec, const tcp::endpoint& ep) {
             if (!ec) {
                 logger_.info(std::format("[{}] connected to [{}] --> [{}]", id(), host_, ep_to_str(socket_, eRemote)));
                 logger_.debug(std::format("[{}] local address [{}]", id(), ep_to_str(socket_, eLocal)));
-                io_buffer event{};
+                IoBuffer event{};
                 manager()->on_connect(std::move(event), shared_from_this());
-            } else {
+            }
+            else {
                 handle_error(ec);
             }
         });
-}
+    }
 
-void tcp_client_stream::do_write(io_buffer event)
-{
-    std::copy(event.begin(), event.end(), write_buffer_.begin());
-    net::async_write(
-        socket_, net::buffer(write_buffer_, event.size()),
-        [this, self{shared_from_this()}] (const net::error_code& ec, std::size_t) {
+    void TcpClientStream::do_write(IoBuffer event)
+    {
+        std::copy(event.begin(), event.end(), write_buffer_.begin());
+        net::async_write(
+            socket_, net::buffer(write_buffer_, event.size()),
+            [this, self{shared_from_this()}](const net::error_code& ec, std::size_t) {
             if (!ec) {
-                manager()->on_write(std::move(io_buffer{}), shared_from_this());
-            } else {
+                manager()->on_write(std::move(IoBuffer{}), shared_from_this());
+            }
+            else {
                 handle_error(ec);
             }
         });
-}
+    }
 
-void tcp_client_stream::do_read()
-{
-    socket_.async_read_some(
-        net::buffer(read_buffer_),
-        [this, self{shared_from_this()}] (const net::error_code& ec, const std::size_t length) {
+    void TcpClientStream::do_read()
+    {
+        socket_.async_read_some(
+            net::buffer(read_buffer_),
+            [this, self{shared_from_this()}](const net::error_code& ec, const std::size_t length) {
             if (!ec && length) {
-                io_buffer event{read_buffer_.data(), read_buffer_.data() + length};
+                IoBuffer event{read_buffer_.data(), read_buffer_.data() + length};
                 manager()->on_read(std::move(event), shared_from_this());
-            } else {
+            }
+            else {
                 handle_error(ec);
             }
         });
+    }
+
+    void TcpClientStream::handle_error(const net::error_code& ec)
+    {
+        manager()->on_error(ec, shared_from_this());
+    }
+
+    void TcpClientStream::do_set_host(std::string host) { host_.swap(host); }
+
+    void TcpClientStream::do_set_service(std::string service) { port_.swap(service); }
 }
-
-void tcp_client_stream::handle_error(const net::error_code& ec)
-{
-    manager()->on_error(ec, shared_from_this());
-}
-
-void tcp_client_stream::do_set_host(std::string host) { host_.swap(host); }
-
-void tcp_client_stream::do_set_service(std::string service) { port_.swap(service); }
