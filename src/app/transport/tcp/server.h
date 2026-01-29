@@ -3,7 +3,9 @@
 
 #include "transport/stream_manager.h"
 
-#include <asio.hpp>
+#include <asio/io_context.hpp>
+#include <asio/ip/tcp.hpp>
+#include <asio/signal_set.hpp>
 
 #include <asynclog/logger_factory.h>
 

@@ -35,7 +35,7 @@ namespace
             .add_parameter(Arg("p,port").required().set_default("8443").description("proxy server listen port number"))
             .add_parameter(Arg("m,mode").required().set_default("http").description("proxy mode [http|socks5]"))
             .add_parameter(Arg("v,log_level").set_default("info").description("verbosity level of log messages [debug|trace|info|warning|error|fatal]"))
-            .add_parameter(Arg("l,log_file").description("log file path"))
+            .add_parameter(Arg("l,log_file").set_default("trace.log").description("log file path"))
             .add_parameter(Arg("t,tls").flag().description("use tls tunnel mode"))
             .add_parameter(Arg("k,private-key").set_default("").description("private key file path"))
             .add_parameter(Arg("s,server-cert").set_default("").description("server certificate file path"))

@@ -3,7 +3,7 @@
 
 #include "transport/server_stream.h"
 
-#include <asio.hpp>
+#include <asio/ip/tcp.hpp>
 #include <asio/ssl.hpp>
 
 #include <asynclog/logger_factory.h>

@@ -3,9 +3,10 @@
 
 #include "transport/io_buffer.h"
 
-#include <asio.hpp>
+#include <asio/error_code.hpp>
 
 #include <memory>
+#include <format>
 
 namespace mtls_mproxy
 {

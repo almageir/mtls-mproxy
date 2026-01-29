@@ -3,9 +3,9 @@
 
 #include "client_stream.h"
 
-#include <asio.hpp>
-
 #include <asynclog/logger_factory.h>
+
+#include <asio/ip/tcp.hpp>
 
 namespace mtls_mproxy
 {

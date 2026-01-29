@@ -3,8 +3,10 @@
 
 #include "transport/io_buffer.h"
 
-#include <asio/error.hpp>
+#include <asio/error_code.hpp>
+
 #include <memory>
+#include <format>
 
 namespace net = asio;
 

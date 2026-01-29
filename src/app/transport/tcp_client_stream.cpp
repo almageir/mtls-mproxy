@@ -1,6 +1,9 @@
 #include "tcp_client_stream.h"
 #include "stream_manager.h"
 
+#include <asio/write.hpp>
+#include <asio/connect.hpp>
+
 namespace
 {
     namespace net = asio;
