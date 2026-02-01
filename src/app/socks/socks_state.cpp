@@ -211,25 +211,23 @@ namespace mtls_mproxy
     {
         session.update_bytes_sent_to_remote(buffer.size());
         session.write_to_client(std::move(buffer));
-
         session.read_from_server();
     }
 
     void SocksDataUdpTransferMode::handle_server_write(SocksSession& session, IoBuffer buffer)
     {
-        session.read_from_server();
+        //session.read_from_server();
     }
 
     void SocksDataUdpTransferMode::handle_client_read(SocksSession& session, IoBuffer buffer)
     {
         session.update_bytes_sent_to_local(buffer.size());
         session.write_to_server(std::move(buffer));
-
         session.read_from_client();
     }
 
     void SocksDataUdpTransferMode::handle_client_write(SocksSession& session, IoBuffer buffer)
     {
-        session.read_from_client();
+        //session.read_from_client();
     }
 }

@@ -78,7 +78,7 @@ namespace mtls_mproxy
     void TlsServerStream::do_handshake()
     {
         socket_.async_handshake(
-            net::ssl::stream_base::Server,
+            net::ssl::stream_base::server,
             [this, self{shared_from_this()}](const net::error_code& ec) {
                 if (!ec) {
                     do_read();

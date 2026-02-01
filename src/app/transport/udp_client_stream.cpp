@@ -71,7 +71,7 @@ namespace mtls_mproxy
         , socket_{ctx, udp::v4()}
         , resolver_{ctx}
         , logger_{logger_factory.create("udp_client")}
-        , read_buffer_{}, write_buffer_{}
+        , read_buffer_{}/*, write_buffer_{}*/
     {
     }
 
@@ -80,7 +80,10 @@ namespace mtls_mproxy
         logger_.debug(std::format("[{}] udp client stream closed", id()));
     }
 
-    void UdpClientStream::do_start() { }
+    void UdpClientStream::do_start() {
+        socket_.bind(udp::endpoint{udp::v4(), 0});
+        do_read();
+    }
 
     void UdpClientStream::do_stop()
     {
@@ -92,61 +95,96 @@ namespace mtls_mproxy
     {
         std::size_t data_offset = determine_udp_data_offset(event);
 
-        std::string host, service;
-        if (!Socks::get_remote_address_info(event.data(), event.size(), host, service) || data_offset == 0) {
+        std::string addr, port;
+        if (!Socks::get_remote_address_info(event.data(), event.size(), addr, port) || data_offset == 0) {
             logger_.warn(std::format("[{}] invalide address requested", id()));
             return;
         }
 
-        std::copy(event.begin() + data_offset, event.end(), write_buffer_.begin());
-
         std::size_t bytes_to_send = event.size() - data_offset;
 
+        Packet packet;
+        packet.data.resize(bytes_to_send);
+        std::copy(event.begin() + data_offset, event.end(), packet.data.begin());
+        packet.addr = addr;
+        packet.port = port;
+
         if ((event[3] == ATYPE_IPv4 || event[3] == ATYPE_IPv6)) {
-
-            udp::endpoint receiver_endpoint(
-                asio::ip::make_address(host), std::stoi(service)
-            );
-
-            logger_.info(std::format("[{}] requested ip v4 address [{}:{}]", id(), host, service));
-
-            socket_.async_send_to(
-                net::buffer(write_buffer_.data(), bytes_to_send),
-                receiver_endpoint,
-                [this, self{shared_from_this()}](const net::error_code& ec, std::size_t bytes_sent) {
-                    if (!ec) {
-                        manager()->on_write(std::move(IoBuffer{}), shared_from_this());
-                    } else {
-                        handle_error(ec);
-                    }
-                }
-            );
+            write_queue_.emplace(std::move(packet));
+            write_packet();
         } else {
-            logger_.info(std::format("[{}] requested domain address [{}:{}]", id(), host, service));
-            resolver_.async_resolve(
-                host, service,
-                [this, self{shared_from_this()}, service, bytes_to_send](const net::error_code& ec, udp::resolver::results_type results) {
-                    if (!ec) {
-                        udp::endpoint ep{results.begin()->endpoint().address(), (std::uint16_t)std::stoi(service)};
-                        logger_.info(std::format("[{}] resolved domain address [{}:{}]", id(),
-                                                 ep.address().to_string(), ep.port()));
-                        socket_.async_send_to(
-                            net::buffer(write_buffer_.data(), bytes_to_send),
-                            ep,
-                            [this, self{shared_from_this()}](const net::error_code& ec, std::size_t bytes_sent) {
-                                if (!ec) {
-                                    manager()->on_write(std::move(IoBuffer{}), shared_from_this());
-                                }
-                                else {
-                                    handle_error(ec);
-                                }
-                            });
-                    }
-                    else {
-                        handle_error(ec);
-                    }
-                });
+            dns_queue_.emplace(std::move(packet));
+            make_dns_resolve();
         }
+    }
+
+    void UdpClientStream::write_packet()
+    {
+        if (write_queue_.empty())
+            return;
+
+        if (write_in_progress_)
+            return;
+
+        const auto& packet = write_queue_.front();
+        write_in_progress_ = true;
+
+        logger_.info(std::format("[{}] requested ip address [{}:{}]", id(), packet.addr, packet.port));
+
+        udp::endpoint target_endpoint(asio::ip::make_address(packet.addr), std::stoi(packet.port));
+
+        socket_.async_send_to(
+            net::buffer(packet.data, packet.data.size()),
+            target_endpoint,
+            [this, self{shared_from_this()}](const net::error_code& ec, std::size_t bytes_sent) {
+                if (!ec) {
+                    write_queue_.pop();
+                    write_in_progress_ = false;
+                    manager()->on_write(std::move(IoBuffer{}), shared_from_this());
+                    if (!write_queue_.empty())
+                        write_packet();
+                } else {
+                    write_in_progress_ = false;
+                    handle_error(ec);
+                }
+            });
+    }
+
+    void UdpClientStream::make_dns_resolve()
+    {
+        if (dns_queue_.empty())
+            return;
+
+        if (resolve_in_progress_)
+            return;
+
+        const auto& packet = dns_queue_.front();
+        resolve_in_progress_ = true;
+
+        logger_.info(std::format("[{}] requested domain address [{}:{}]", id(), packet.addr, packet.port));
+        resolver_.async_resolve(
+            packet.addr, packet.port,
+            [this, self{shared_from_this()}](const net::error_code& ec, udp::resolver::results_type results) {
+                if (!ec) {
+                    auto packet = dns_queue_.front();
+                    udp::endpoint ep{results.begin()->endpoint().address(),
+                        static_cast<std::uint16_t>(std::stoi(packet.port))};
+
+                    logger_.info(std::format("[{}] resolved domain address [{}:{}] -> [{}]", id(),
+                                             packet.addr, packet.port, aux::to_string(ep)));
+
+                    packet.addr = ep.address().to_string();
+
+                    write_queue_.emplace(std::move(packet));
+                    dns_queue_.pop();
+                    resolve_in_progress_ = false;
+                    if (!dns_queue_.empty())
+                        make_dns_resolve();
+                } else {
+                    resolve_in_progress_ = false;
+                    handle_error(ec);
+                }
+            });
     }
 
     void UdpClientStream::do_read()
@@ -170,7 +208,7 @@ namespace mtls_mproxy
         manager()->on_error(ec, shared_from_this());
     }
 
-    void UdpClientStream::do_set_host(std::string host) { host_.swap(host); }
+    void UdpClientStream::do_set_host(std::string host) {}
 
-    void UdpClientStream::do_set_service(std::string service) { port_.swap(service); }
+    void UdpClientStream::do_set_service(std::string service) {}
 }

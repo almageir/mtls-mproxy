@@ -42,7 +42,6 @@ namespace mtls_mproxy
         , read_buffer_{}
         , write_buffer_{}
         , udp_read_buffer_{}
-        , udp_write_buffer_{}
     {
     }
 
@@ -79,7 +78,21 @@ namespace mtls_mproxy
             // a connection with a client in SOCKS5 UDP_ASSOCIATE mode
             do_read();
         } else {
-            write_udp(std::move(event));
+            IoBuffer packet{};
+
+            const auto client_addr_bytes = aux::endpoint_to_bytes(sender_ep_);
+            const auto udp_reply_hdr_size = client_addr_bytes.size() + SOCKS5_UDP_HEADER_SIZE;
+
+            packet.resize(udp_reply_hdr_size + event.size());
+            packet[0] = packet[1] = packet[2] = 0;
+            packet[3] = sender_ep_.address().is_v4() ? ATYPE_IPv4 : ATYPE_IPv6;
+
+            std::ranges::copy(client_addr_bytes, packet.data() + SOCKS5_UDP_HEADER_SIZE);
+            std::ranges::copy(event, packet.data() + udp_reply_hdr_size);
+
+            udp_write_queue_.emplace(std::move(packet));
+
+            write_udp();
         }
     }
 
@@ -104,30 +117,36 @@ namespace mtls_mproxy
         manager()->on_error(ec, shared_from_this());
     }
 
-    void tcp_server_stream::write_udp(IoBuffer buffer)
+    // +---- + ------ + ------ + ---------- + -------- + ---------- +
+    // | RSV |  FRAG  | ATYP   |  DST.ADDR  | DST.PORT |    DATA    |
+    // +---- + ------ + ------ + ---------- + -------- + ---------- +
+    // |  2  |    1   |   1    |  Variable  |    2     |  Variable  |
+    // +---- + ------ + ------ + ---------- + -------- + ---------- +
+    void tcp_server_stream::write_udp()
     {
-        // +---- + ------ + ------ + ---------- + -------- + ---------- +
-        // | RSV |  FRAG  | ATYP   |  DST.ADDR  | DST.PORT |    DATA    |
-        // +---- + ------ + ------ + ---------- + -------- + ---------- +
-        // |  2  |    1   |   1    |  Variable  |    2     |  Variable  |
-        // +---- + ------ + ------ + ---------- + -------- + ---------- +
-        const auto client_addr_bytes = aux::endpoint_to_bytes(sender_ep_);
-        udp_write_buffer_[0] = udp_read_buffer_[1] = udp_read_buffer_[2] = 0;
-        udp_write_buffer_[3] = sender_ep_.address().is_v4() ? ATYPE_IPv4 : ATYPE_IPv6;
+        if (udp_write_queue_.empty())
+            return;
 
-        const auto udp_reply_hdr_size = client_addr_bytes.size() + SOCKS5_UDP_HEADER_SIZE;
+        if (udp_write_in_progress_)
+            return;
 
-        std::ranges::copy(client_addr_bytes, udp_write_buffer_.data() + SOCKS5_UDP_HEADER_SIZE);
-        std::ranges::copy(buffer, udp_write_buffer_.data() + udp_reply_hdr_size);
+        const auto& packet = udp_write_queue_.front();
+        udp_write_in_progress_ = true;
 
         (*udp_socket_).async_send_to(
-            net::buffer(udp_write_buffer_.data(), buffer.size() + udp_reply_hdr_size), sender_ep_,
-            [this, self{shared_from_this()}](const net::error_code& ec, std::size_t bytes_sent) {
-            if (!ec)
-                manager()->on_write(std::move(IoBuffer{}), shared_from_this());
-            else
-                handle_error(ec);
-        });
+            net::buffer(packet.data(), packet.size()), sender_ep_,
+                [this, self{shared_from_this()}](const net::error_code& ec, std::size_t bytes_sent) {
+                    if (!ec) {
+                        udp_write_queue_.pop();
+                        udp_write_in_progress_ = false;
+                        manager()->on_write(std::move(IoBuffer{}), shared_from_this());
+                        if (!udp_write_queue_.empty())
+                            write_udp();
+                    }
+                    else {
+                        handle_error(ec);
+                    }
+                });
     }
 
     void tcp_server_stream::write_tcp(IoBuffer buffer)

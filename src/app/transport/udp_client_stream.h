@@ -6,11 +6,18 @@
 #include <asynclog/logger_factory.h>
 
 #include <asio/ip/udp.hpp>
+#include <queue>
 
 namespace mtls_mproxy
 {
     namespace net = asio;
     using udp = asio::ip::udp;
+
+    struct Packet {
+        IoBuffer data;
+        std::string addr;
+        std::string port;
+    };
 
     class UdpClientStream final : public ClientStream
     {
@@ -28,6 +35,10 @@ namespace mtls_mproxy
         void do_read() override;
         void do_write(IoBuffer event) override;
 
+        void write_packet();
+        void make_dns_resolve();
+
+
         void handle_error(const net::error_code& ec);
 
         void do_set_host(std::string host) override;
@@ -38,13 +49,16 @@ namespace mtls_mproxy
 
         asynclog::ScopedLogger logger_;
 
-        std::string host_;
-        std::string port_;
-
         udp::endpoint sender_ep_;
 
         std::array<std::uint8_t, max_buffer_size> read_buffer_;
-        std::array<std::uint8_t, max_buffer_size> write_buffer_;
+        //std::array<std::uint8_t, max_buffer_size> write_buffer_;
+
+        std::queue<Packet> write_queue_;
+        std::queue<Packet> dns_queue_;
+
+        bool write_in_progress_{false};
+        bool resolve_in_progress_{false};
     };
 }
 

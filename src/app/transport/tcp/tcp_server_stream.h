@@ -3,10 +3,12 @@
 
 #include "transport/server_stream.h"
 
+#include <asynclog/logger_factory.h>
+
 #include <asio/ip/tcp.hpp>
 #include <asio/ip/udp.hpp>
 
-#include "asynclog/logger_factory.h"
+#include <queue>
 
 namespace mtls_mproxy
 {
@@ -35,7 +37,7 @@ namespace mtls_mproxy
         void handle_error(const net::error_code& ec);
         bool is_udp_enabled() const { return udp_socket_.has_value(); }
 
-        void write_udp(IoBuffer buffer);
+        void write_udp();
         void write_tcp(IoBuffer buffer);
 
         void read_udp();
@@ -51,7 +53,8 @@ namespace mtls_mproxy
         std::array<std::uint8_t, max_buffer_size> read_buffer_;
         std::array<std::uint8_t, max_buffer_size> write_buffer_;
         std::array<std::uint8_t, max_buffer_size> udp_read_buffer_;
-        std::array<std::uint8_t, max_buffer_size> udp_write_buffer_;
+        std::queue<IoBuffer> udp_write_queue_;
+        bool udp_write_in_progress_{false};
     };
 }
 
