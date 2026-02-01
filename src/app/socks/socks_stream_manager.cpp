@@ -1,11 +1,13 @@
 #include "socks_stream_manager.h"
 #include "transport/tcp_client_stream.h"
+#include "transport/udp_client_stream.h"
 
 namespace mtls_mproxy
 {
-    SocksStreamManager::SocksStreamManager(asynclog::LoggerFactory log_factory)
+    SocksStreamManager::SocksStreamManager(asynclog::LoggerFactory log_factory, bool udp_enabled)
         : logger_factory_{log_factory}
         , logger_{logger_factory_.create("socks5_session_manager")}
+        , is_udp_associate_mode_enabled_{udp_enabled}
     {
     }
 
@@ -17,8 +19,10 @@ namespace mtls_mproxy
     void SocksStreamManager::stop(int id)
     {
         if (auto it = sessions_.find(id); it != sessions_.end()) {
-            it->second.client->stop();
-            it->second.server->stop();
+            if (it->second.client)
+                it->second.client->stop();
+            if (it->second.server)
+                it->second.server->stop();
 
             const auto& ses = it->second.session;
 
@@ -58,10 +62,9 @@ namespace mtls_mproxy
         const auto id{upstream->id()};
         logger_.debug(std::format("[{}] session created", id));
 
-        auto downstream = std::make_shared<TcpClientStream>(shared_from_this(), id, upstream->executor(), logger_factory_);
-
         SocksSession session{id, shared_from_this(), logger_factory_};
-        SocksPair pair{id, std::move(upstream), std::move(downstream), std::move(session)};
+        session.support_udp_associate_mode(is_udp_associate_mode_enabled_);
+        SocksPair pair{id, std::move(upstream), nullptr, std::move(session)};
         sessions_.insert({id, std::move(pair)});
     }
 
@@ -122,9 +125,30 @@ namespace mtls_mproxy
     void SocksStreamManager::connect(int id, std::string host, std::string service)
     {
         if (auto it = sessions_.find(id); it != sessions_.end()) {
+            if (!it->second.client) {
+                if (it->second.session.is_udp_mode_enabled()) {
+                    it->second.client = std::make_shared<UdpClientStream>(shared_from_this(),
+                                                                          id,
+                                                                          it->second.server->executor(),
+                                                                          logger_factory_);
+                } else {
+                    it->second.client = std::make_shared<TcpClientStream>(shared_from_this(),
+                                                                          id,
+                                                                          it->second.server->executor(),
+                                                                          logger_factory_);
+                }
+            }
             it->second.client->set_host(std::move(host));
             it->second.client->set_service(std::move(service));
             it->second.client->start();
         }
+    }
+
+    std::vector<std::uint8_t> SocksStreamManager::udp_associate(int id)
+    {
+        if (auto it = sessions_.find(id); it != sessions_.end())
+            return it->second.server->udp_associate();
+
+        return {};
     }
 }

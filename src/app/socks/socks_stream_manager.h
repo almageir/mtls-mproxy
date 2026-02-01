@@ -12,7 +12,7 @@ namespace mtls_mproxy
         : public StreamManager
     {
     public:
-        explicit SocksStreamManager(asynclog::LoggerFactory log_factory);
+        explicit SocksStreamManager(asynclog::LoggerFactory log_factory, bool udp_enabled = false);
         ~SocksStreamManager() override = default;
 
         SocksStreamManager(const SocksStreamManager& other) = delete;
@@ -37,6 +37,8 @@ namespace mtls_mproxy
         void write_client(int id, IoBuffer buffer) override;
         void connect(int id, std::string host, std::string service) override;
 
+        std::vector<std::uint8_t> udp_associate(int id) override;
+
     private:
         struct SocksPair {
             int id;
@@ -48,6 +50,7 @@ namespace mtls_mproxy
         std::unordered_map<int, SocksPair> sessions_;
         asynclog::LoggerFactory logger_factory_;
         asynclog::ScopedLogger logger_;
+        bool is_udp_associate_mode_enabled_{false};
     };
 
     using socks5_stream_manager_ptr = std::shared_ptr<SocksStreamManager>;

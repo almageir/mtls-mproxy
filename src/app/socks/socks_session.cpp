@@ -91,6 +91,11 @@ namespace mtls_mproxy
         manager()->read_client(id());
     }
 
+    std::vector<std::uint8_t> SocksSession::udp_associate()
+    {
+        return manager()->udp_associate(id());
+    }
+
     void SocksSession::write_to_client(IoBuffer buffer)
     {
         manager()->write_client(id(), std::move(buffer));

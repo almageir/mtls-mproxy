@@ -18,7 +18,7 @@ namespace mtls_mproxy
     {
         if (auto it = sessions_.find(id); it != sessions_.end()) {
             it->second.client->stop();
-            it->second.server->stop();
+            it->second.Server->stop();
 
             const auto& ses = it->second.session;
 
@@ -80,13 +80,13 @@ namespace mtls_mproxy
     void HttpStreamManager::read_server(int id)
     {
         if (auto it = sessions_.find(id); it != sessions_.end())
-            it->second.server->read();
+            it->second.Server->read();
     }
 
     void HttpStreamManager::write_server(int id, IoBuffer buffer)
     {
         if (auto it = sessions_.find(id); it != sessions_.end())
-            it->second.server->write(std::move(buffer));
+            it->second.Server->write(std::move(buffer));
     }
 
     void HttpStreamManager::on_read(IoBuffer buffer, ClientStreamPtr stream)
@@ -126,5 +126,10 @@ namespace mtls_mproxy
             it->second.client->set_service(std::move(service));
             it->second.client->start();
         }
+    }
+
+    std::vector<std::uint8_t> HttpStreamManager::udp_associate(int id)
+    {
+        return {};
     }
 }

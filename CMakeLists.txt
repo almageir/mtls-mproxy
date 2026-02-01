@@ -51,15 +51,21 @@ target_sources(mtls-mproxy
         src/main.cpp
 
         # Common types
+        src/app/auxiliary/helpers.h
+        src/app/auxiliary/helpers.cpp
         src/app/transport/io_buffer.h
         src/app/transport/stream.h
         src/app/transport/server_stream.h
         src/app/transport/client_stream.h
         src/app/transport/stream_manager.h
 
-        # Outgoing proxy connections support
+        # Outgoing proxy tcp connections support
         src/app/transport/tcp_client_stream.h
         src/app/transport/tcp_client_stream.cpp
+
+        # Outgoing proxy udp connections support
+        src/app/transport/udp_client_stream.h
+        src/app/transport/udp_client_stream.cpp
 
         # Incoming plain tcp support
         src/app/transport/tcp/server.h
@@ -92,7 +98,7 @@ target_sources(mtls-mproxy
         src/app/socks/socks_state.cpp
         src/app/socks/socks_stream_manager.h
         src/app/socks/socks_stream_manager.cpp
-)
+ "src/app/auxiliary/helpers.h")
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/app)
 

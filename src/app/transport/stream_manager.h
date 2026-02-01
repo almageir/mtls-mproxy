@@ -32,6 +32,8 @@ namespace mtls_mproxy
         virtual void read_client(int id) = 0;
         virtual void write_client(int id, IoBuffer event) = 0;
         virtual void connect(int id, std::string host, std::string service) = 0;
+
+        virtual std::vector<std::uint8_t> udp_associate(int id) = 0;
     };
 
     using StreamManagerPtr = std::shared_ptr<StreamManager>;

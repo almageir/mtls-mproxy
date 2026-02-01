@@ -14,13 +14,13 @@ namespace mtls_mproxy
     using tcp = asio::ip::tcp;
     namespace net = asio;
 
-    class server {
+    class Server {
     public:
-        explicit server(const std::string& port, StreamManagerPtr proxy_backend, asynclog::LoggerFactory logger_factory);
-        virtual ~server();
+        explicit Server(const std::string& port, StreamManagerPtr proxy_backend, asynclog::LoggerFactory logger_factory);
+        virtual ~Server();
 
-        server(const server& other) = delete;
-        server& operator=(const server& other) = delete;
+        Server(const Server& other) = delete;
+        Server& operator=(const Server& other) = delete;
 
         void run();
     private:

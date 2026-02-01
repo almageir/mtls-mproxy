@@ -16,6 +16,11 @@ namespace mtls_mproxy
     public:
         ServerStream(const StreamManagerPtr& smp, int id) : Stream(smp, id) {}
         virtual net::any_io_executor executor() = 0;
+
+        std::vector<std::uint8_t> udp_associate() { return do_udp_associate(); }
+
+    private:
+        virtual std::vector<std::uint8_t> do_udp_associate() = 0;
     };
 
     using ServerStreamPtr = std::shared_ptr<ServerStream>;

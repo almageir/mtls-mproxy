@@ -6,7 +6,7 @@
 
 namespace mtls_mproxy
 {
-    server::server(const std::string& port, StreamManagerPtr proxy_backend, asynclog::LoggerFactory logger_factory)
+    Server::Server(const std::string& port, StreamManagerPtr proxy_backend, asynclog::LoggerFactory logger_factory)
         : signals_(ctx_)
         , acceptor_(ctx_)
         , stream_manager_(proxy_backend)
@@ -26,41 +26,41 @@ namespace mtls_mproxy
         acceptor_.bind(ep);
         acceptor_.listen();
 
-        logger_.info("proxy server starts on port: " + port);
+        logger_.info("proxy Server starts on port: " + port);
         start_accept();
     }
 
-    void server::run()
+    void Server::run()
     {
         ctx_.run();
     }
 
-    void server::configure_signals()
+    void Server::configure_signals()
     {
         signals_.add(SIGINT);
         signals_.add(SIGTERM);
     }
 
-    void server::async_wait_signals()
+    void Server::async_wait_signals()
     {
         signals_.async_wait(
             [this](net::error_code /*ec*/, int /*signno*/) {
-            logger_.info("proxy server stopping");
+            logger_.info("proxy Server stopping");
             acceptor_.close();
             ctx_.stop();
-            logger_.info("proxy server stopped");
+            logger_.info("proxy Server stopped");
         });
     }
 
-    void server::start_accept()
+    void Server::start_accept()
     {
         tcp::socket socket{ctx_.get_executor()};
         acceptor_.async_accept(
             [this](const net::error_code& ec, tcp::socket socket) {
                 if (!acceptor_.is_open()) {
-                    logger_.debug("proxy server acceptor is closed");
+                    logger_.debug("proxy Server acceptor is closed");
                     if (ec)
-                        logger_.debug("proxy server error: " + ec.message());
+                        logger_.debug("proxy Server error: " + ec.message());
 
                     return;
                 }
@@ -78,8 +78,8 @@ namespace mtls_mproxy
             });
     }
 
-    server::~server()
+    Server::~Server()
     {
-        logger_.debug("proxy server stopped");
+        logger_.debug("proxy Server stopped");
     }
 }

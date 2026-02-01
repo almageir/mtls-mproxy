@@ -4,6 +4,7 @@
 #include "transport/server_stream.h"
 
 #include <asio/ip/tcp.hpp>
+#include <asio/ip/udp.hpp>
 
 #include "asynclog/logger_factory.h"
 
@@ -11,6 +12,7 @@ namespace mtls_mproxy
 {
     namespace net = asio;
     using tcp = asio::ip::tcp;
+    using udp = asio::ip::udp;
 
     class tcp_server_stream final : public ServerStream
     {
@@ -22,20 +24,34 @@ namespace mtls_mproxy
         ~tcp_server_stream() override;
 
         net::any_io_executor executor() override;
-        tcp::socket& socket();
+
     private:
         void do_start() override;
         void do_stop() override;
         void do_read() override;
         void do_write(IoBuffer event) override;
+        std::vector<std::uint8_t> do_udp_associate() override;
 
         void handle_error(const net::error_code& ec);
+        bool is_udp_enabled() const { return udp_socket_.has_value(); }
+
+        void write_udp(IoBuffer buffer);
+        void write_tcp(IoBuffer buffer);
+
+        void read_udp();
+        void read_tcp();
 
         tcp::socket socket_;
+        std::optional<udp::socket> udp_socket_ = std::nullopt;
         asynclog::ScopedLogger logger_;
+
+        udp::endpoint sender_ep_;
+        bool use_udp_{false};
 
         std::array<std::uint8_t, max_buffer_size> read_buffer_;
         std::array<std::uint8_t, max_buffer_size> write_buffer_;
+        std::array<std::uint8_t, max_buffer_size> udp_read_buffer_;
+        std::array<std::uint8_t, max_buffer_size> udp_write_buffer_;
     };
 }
 

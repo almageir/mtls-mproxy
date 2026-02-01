@@ -58,10 +58,27 @@ namespace mtls_mproxy
         void handle_server_write(SocksSession& session, IoBuffer event) override;
     };
 
+    class SocksReadyUdpTransferData final : public SocksState
+    {
+    public:
+        static auto instance() { return std::make_unique<SocksReadyUdpTransferData>(); }
+        void handle_server_write(SocksSession& session, IoBuffer event) override;
+    };
+
     class SocksDataTransferMode final : public SocksState
     {
     public:
         static auto instance() { return std::make_unique<SocksDataTransferMode>(); }
+        void handle_server_read(SocksSession& session, IoBuffer event) override;
+        void handle_server_write(SocksSession& session, IoBuffer event) override;
+        void handle_client_read(SocksSession& session, IoBuffer event) override;
+        void handle_client_write(SocksSession& session, IoBuffer event) override;
+    };
+
+    class SocksDataUdpTransferMode final : public SocksState
+    {
+    public:
+        static auto instance() { return std::make_unique<SocksDataUdpTransferMode>(); }
         void handle_server_read(SocksSession& session, IoBuffer event) override;
         void handle_server_write(SocksSession& session, IoBuffer event) override;
         void handle_client_read(SocksSession& session, IoBuffer event) override;

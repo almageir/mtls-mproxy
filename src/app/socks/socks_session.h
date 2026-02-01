@@ -21,12 +21,13 @@ namespace mtls_mproxy
     class SocksSession
     {
         struct SocksCtx {
-            int id;
+            int id{};
             std::vector<std::uint8_t> response;
             std::string host;
             std::string service;
-            std::size_t transferred_bytes_to_remote;
-            std::size_t transferred_bytes_to_local;
+            std::size_t transferred_bytes_to_remote{};
+            std::size_t transferred_bytes_to_local{};
+            bool udp_mode_enabled{false};
 
             Socks::RequestHeader* request_hdr() {
                 return reinterpret_cast<Socks::RequestHeader*>(response.data());
@@ -70,14 +71,20 @@ namespace mtls_mproxy
 
         void set_response(IoBuffer buffer) { context().response = std::move(buffer); }
         void set_response_error_code(std::uint8_t err_code) { context().request_hdr()->command = err_code; }
+        void enable_udp_mode() { context().udp_mode_enabled = true; }
+        bool is_udp_mode_enabled() const { return context_.udp_mode_enabled; }
 
         void connect();
         void stop();
         void read_from_server();
         void read_from_client();
+        std::vector<std::uint8_t> udp_associate();
 
         void write_to_client(IoBuffer buffer);
         void write_to_server(IoBuffer buffer);
+
+        void support_udp_associate_mode(bool enabled) { is_udp_associate_supported_ = enabled; }
+        bool is_udp_associate_mode_supported() const { return is_udp_associate_supported_; }
 
         std::vector<std::uint8_t> response() const { return context().response; }
 
@@ -90,6 +97,7 @@ namespace mtls_mproxy
         std::unique_ptr<SocksState> state_;
         StreamManagerPtr manager_;
         asynclog::ScopedLogger logger_;
+        bool is_udp_associate_supported_{false};
     };
 }
 

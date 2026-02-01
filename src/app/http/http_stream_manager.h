@@ -37,10 +37,12 @@ namespace mtls_mproxy
         void write_client(int id, IoBuffer event) override;
         void connect(int id, std::string host, std::string service) override;
 
+        std::vector<std::uint8_t> udp_associate(int id) override;
+
     private:
         struct HttpPair {
             int id;
-            ServerStreamPtr server;
+            ServerStreamPtr Server;
             ClientStreamPtr client;
             HttpSession session;
         };

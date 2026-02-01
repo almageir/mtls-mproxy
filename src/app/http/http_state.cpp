@@ -47,7 +47,7 @@ namespace mtls_mproxy
 
     void HttpState::handle_server_error(HttpSession& session, net::error_code ec)
     {
-        const auto errors = check_errors(session, ec, "server");
+        const auto errors = check_errors(session, ec, "Server");
         if (!errors.empty())
             session.logger().warn(errors);
         session.stop();

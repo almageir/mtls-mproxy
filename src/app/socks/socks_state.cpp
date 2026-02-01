@@ -63,7 +63,7 @@ namespace mtls_mproxy
 
     void SocksState::handle_server_error(SocksSession& session, net::error_code ec)
     {
-        const auto errors = check_errors(session, ec, "server");
+        const auto errors = check_errors(session, ec, "Server");
         if (!errors.empty())
             session.logger().warn(errors);
         session.stop();
@@ -95,26 +95,66 @@ namespace mtls_mproxy
 
     void SocksConnectionRequest::handle_server_read(SocksSession& session, IoBuffer buffer) {
         const auto sid = session.id();
+        const auto requestedSocksMode = Socks::parse_requested_socks_mode(buffer.data(), buffer.size());
 
-        if (!Socks::is_valid_request_packet(buffer.data(), buffer.size())) {
+        if (!requestedSocksMode.has_value()) {
             session.logger().warn(std::format("[{}] socks5 protocol: bad request packet", sid));
             session.stop();
             return;
         }
 
         std::string host, service;
-        if (!Socks::get_remote_address_info(buffer.data(), buffer.size(), host, service)) {
-            session.logger().warn(std::format("[{}] socks5 protocol: bad remote address format", sid));
+        if (*requestedSocksMode == Socks::Request::tcp_connection) {
+            if (!Socks::get_remote_address_info(buffer.data(), buffer.size(), host, service)) {
+                session.logger().warn(std::format("[{}] socks5 protocol: bad remote address format", sid));
+                session.stop();
+                return;
+            }
+
+            session.set_endpoint_info(host, service);
+
+            session.logger().info(std::format("[{}] requested [{}:{}]", sid, host, service));
+            session.set_response(std::move(buffer));
+            session.connect();
+            session.change_state(SocksConnectionEstablished::instance());
+        } else if (*requestedSocksMode == Socks::udp_port) {
+            if (!session.is_udp_associate_mode_supported()) {
+                session.logger().warn(std::format("[{}] socks5 UDP associate not supported", sid));
+                session.set_response(std::move(buffer));
+                session.set_response_error_code(Socks::Responses::command_not_supported);
+                session.write_to_server(std::move(IoBuffer{session.response()}));
+                session.stop();
+                return;
+            }
+
+            session.enable_udp_mode();
+            auto bind_addr = session.udp_associate();
+
+            if (bind_addr.size() + 4 == buffer.size()) {
+                session.set_response(std::move(buffer));
+                session.context().request_hdr()->command = 0x00;
+                session.context().request_hdr()->type = bind_addr.size() == 6 ? 0x01 : 0x04;
+                std::copy(bind_addr.begin(), bind_addr.end(), session.context().request_hdr()->data);
+
+                if (Socks::get_remote_address_info(session.response().data(), session.response().size(), host, service)) {
+                    session.logger().info(std::format("[{}] requested udp bind to [{}:{}]", sid, host, service));
+                } else {
+                    session.logger().warn(std::format("[{}] socks5 protocol: udp associate failed", sid));
+                    session.stop();
+                    return;
+                }
+
+                session.write_to_server(session.response());
+                session.connect();
+                session.change_state(SocksReadyUdpTransferData::instance());
+            }
+        } else {
+            session.logger().warn(std::format("[{}] socks5 TCP bind not supported", sid));
+            session.set_response(std::move(buffer));
+            session.set_response_error_code(Socks::Responses::command_not_supported);
+            session.write_to_server(std::move(IoBuffer{session.response()}));
             session.stop();
-            return;
         }
-
-        session.set_endpoint_info(host, service);
-
-        session.logger().info(std::format("[{}] requested [{}:{}]", sid, host, service));
-        session.set_response(std::move(buffer));
-        session.connect();
-        session.change_state(SocksConnectionEstablished::instance());
     }
 
     void SocksConnectionEstablished::handle_client_connect(SocksSession& session, IoBuffer buffer) {
@@ -135,6 +175,7 @@ namespace mtls_mproxy
         session.stop();
     }
 
+    // TCP Transfer mode
     void SocksReadyTransferData::handle_server_write(SocksSession& session, IoBuffer buffer) {
         session.read_from_server();
         session.read_from_client();
@@ -157,5 +198,38 @@ namespace mtls_mproxy
     void SocksDataTransferMode::handle_client_read(SocksSession& session, IoBuffer buffer) {
         session.update_bytes_sent_to_local(buffer.size());
         session.write_to_server(std::move(buffer));
+    }
+
+    // UDP Transfer mode
+    void SocksReadyUdpTransferData::handle_server_write(SocksSession& session, IoBuffer buffer)
+    {
+        session.read_from_server();
+        session.change_state(SocksDataUdpTransferMode::instance());
+    }
+
+    void SocksDataUdpTransferMode::handle_server_read(SocksSession& session, IoBuffer buffer)
+    {
+        session.update_bytes_sent_to_remote(buffer.size());
+        session.write_to_client(std::move(buffer));
+
+        session.read_from_server();
+    }
+
+    void SocksDataUdpTransferMode::handle_server_write(SocksSession& session, IoBuffer buffer)
+    {
+        session.read_from_server();
+    }
+
+    void SocksDataUdpTransferMode::handle_client_read(SocksSession& session, IoBuffer buffer)
+    {
+        session.update_bytes_sent_to_local(buffer.size());
+        session.write_to_server(std::move(buffer));
+
+        session.read_from_client();
+    }
+
+    void SocksDataUdpTransferMode::handle_client_write(SocksSession& session, IoBuffer buffer)
+    {
+        session.read_from_client();
     }
 }

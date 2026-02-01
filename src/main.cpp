@@ -20,6 +20,13 @@ namespace
         std::string log_file_path;
         int log_level;
         mtls_mproxy::TlsServer::TlsOptions tls_options;
+
+        bool tls_enabled() const {
+            return
+                !(tls_options.ca_cert.empty() &&
+                tls_options.private_key.empty() &&
+                tls_options.server_cert.empty());
+        }
     };
 
     std::optional<server_conf> parse_command_line_arguments(int argc, char* argv[])
@@ -32,13 +39,13 @@ namespace
 
         argParser
             .add_parameter(Arg("h,help").flag().description("show help message"))
-            .add_parameter(Arg("p,port").required().set_default("8443").description("proxy server listen port number"))
+            .add_parameter(Arg("p,port").required().set_default("8443").description("proxy Server listen port number"))
             .add_parameter(Arg("m,mode").required().set_default("http").description("proxy mode [http|socks5]"))
             .add_parameter(Arg("v,log_level").set_default("info").description("verbosity level of log messages [debug|trace|info|warning|error|fatal]"))
             .add_parameter(Arg("l,log_file").set_default("trace.log").description("log file path"))
             .add_parameter(Arg("t,tls").flag().description("use tls tunnel mode"))
             .add_parameter(Arg("k,private-key").set_default("").description("private key file path"))
-            .add_parameter(Arg("s,server-cert").set_default("").description("server certificate file path"))
+            .add_parameter(Arg("s,Server-cert").set_default("").description("Server certificate file path"))
             .add_parameter(Arg("c,ca-cert").set_default("").description("CA certificate file path"));
 
         const auto err_msg = argParser.parse(argc, argv);
@@ -66,7 +73,7 @@ namespace
             }
             srv_conf.tls_options.server_cert = argParser.arg("s").get_value_as_str();
             if (srv_conf.tls_options.server_cert.empty()) {
-                std::cerr << "In tls mode, the <server-cert> parameter must be specified\n";
+                std::cerr << "In tls mode, the <Server-cert> parameter must be specified\n";
                 return std::nullopt;
             }
             srv_conf.tls_options.ca_cert = argParser.arg("c").get_value_as_str();
@@ -109,7 +116,8 @@ int main(int argc, char* argv[])
             proxy_backend = std::make_shared<HttpStreamManager>(log_factory);
         } else {
             logger.info("Proxy-mode: socks5/s");
-            proxy_backend = std::make_shared<SocksStreamManager>(log_factory);
+            bool support_udp_associate = !conf.tls_enabled();
+            proxy_backend = std::make_shared<SocksStreamManager>(log_factory, support_udp_associate);
         }
 
         if (!conf.tls_options.private_key.empty()) {
@@ -118,7 +126,7 @@ int main(int argc, char* argv[])
             srv.run();
         } else {
             logger.info(std::format("Start listening on port: {}, tls tunnel mode disabled", conf.listen_port));
-            server srv(conf.listen_port, std::move(proxy_backend), log_factory);
+            Server srv(conf.listen_port, std::move(proxy_backend), log_factory);
             srv.run();
         }
     } catch (std::exception& ex) {

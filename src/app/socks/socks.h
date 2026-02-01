@@ -74,7 +74,7 @@ public:
     };
 
     static std::optional<std::string> is_socks5_auth_request(const std::uint8_t* buffer, std::size_t length);
-    static bool is_valid_request_packet(const std::uint8_t* buffer, std::size_t length);
+    static std::optional<Request> parse_requested_socks_mode(const std::uint8_t* buffer, std::size_t length);
     static bool get_remote_address_info(const std::uint8_t* buffer, std::size_t length, std::string& host, std::string& port);
     static uint16_t get_port_from_binary(const std::uint8_t* buffer);
 };

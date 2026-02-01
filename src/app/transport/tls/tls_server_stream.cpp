@@ -1,6 +1,10 @@
 #include "tls_server_stream.h"
 #include "transport/stream_manager.h"
 
+#include "auxiliary/helpers.h"
+
+#include <asio/write.hpp>
+
 namespace
 {
     namespace net = asio;
@@ -16,7 +20,7 @@ namespace
         if (ec)
             return { "remote_endpoint failed: " + ec.message() };
 
-        return { rep.address().to_string() + ":" + std::to_string(rep.port()) };
+        return aux::to_string(rep);
     }
 }
 
@@ -36,15 +40,10 @@ namespace mtls_mproxy
 
     TlsServerStream::~TlsServerStream()
     {
-        logger_.debug(std::format("[{}] tcp server stream closed", id()));
+        logger_.debug(std::format("[{}] tcp Server stream closed", id()));
     }
 
     net::any_io_executor TlsServerStream::executor() { return socket_.get_executor(); }
-
-    tcp::socket& TlsServerStream::socket()
-    {
-        return socket_.next_layer();
-    }
 
     void TlsServerStream::do_start()
     {
@@ -62,32 +61,32 @@ namespace mtls_mproxy
 
         socket_.async_shutdown(
             [this, self{shared_from_this()}](const net::error_code& ec) {
-            if (ec)
-                handle_error(ec);
-            socket_.lowest_layer().close();
-        });
+                if (ec)
+                    handle_error(ec);
+                socket_.lowest_layer().close();
+            });
 
         net::async_write(
             socket_, net::null_buffers{},
             [this, self{shared_from_this()}](const net::error_code& ec, std::size_t trans_bytes) {
-            if (ec)
-                handle_error(ec);
-            socket_.lowest_layer().close();
-        });
+                if (ec)
+                    handle_error(ec);
+                socket_.lowest_layer().close();
+            });
     }
 
     void TlsServerStream::do_handshake()
     {
         socket_.async_handshake(
-            net::ssl::stream_base::server,
+            net::ssl::stream_base::Server,
             [this, self{shared_from_this()}](const net::error_code& ec) {
-            if (!ec) {
-                do_read();
-            }
-            else {
-                handle_error(ec);
-            }
-        });
+                if (!ec) {
+                    do_read();
+                }
+                else {
+                    handle_error(ec);
+                }
+            });
     }
 
     void TlsServerStream::do_write(IoBuffer event)
@@ -95,14 +94,19 @@ namespace mtls_mproxy
         std::ranges::copy(event, write_buffer_.begin());
         net::async_write(
             socket_, net::buffer(write_buffer_, event.size()),
-            [this, self{shared_from_this()}](const net::error_code& ec, size_t) {
-            if (!ec) {
-                manager()->on_write(std::move(IoBuffer{}), shared_from_this());
-            }
-            else {
-                handle_error(ec);
-            }
-        });
+                [this, self{shared_from_this()}](const net::error_code& ec, size_t) {
+                if (!ec) {
+                    manager()->on_write(std::move(IoBuffer{}), shared_from_this());
+                }
+                else {
+                    handle_error(ec);
+                }
+            });
+    }
+
+    std::vector<std::uint8_t> TlsServerStream::do_udp_associate()
+    {
+        return {};
     }
 
     void TlsServerStream::do_read()
@@ -110,14 +114,14 @@ namespace mtls_mproxy
         socket_.async_read_some(
             net::buffer(read_buffer_),
             [this, self{shared_from_this()}](const net::error_code& ec, const size_t length) {
-            if (!ec) {
-                IoBuffer event(read_buffer_.data(), read_buffer_.data() + length);
-                manager()->on_read(std::move(event), shared_from_this());
-            }
-            else {
-                handle_error(ec);
-            }
-        });
+                if (!ec) {
+                    IoBuffer event(read_buffer_.data(), read_buffer_.data() + length);
+                    manager()->on_read(std::move(event), shared_from_this());
+                }
+                else {
+                    handle_error(ec);
+                }
+            });
     }
 
     void TlsServerStream::handle_error(const net::error_code& ec)

@@ -23,24 +23,24 @@ std::optional<std::string> Socks::is_socks5_auth_request(const std::uint8_t* buf
     return "authentication support is not implemented";
 }
 
-bool Socks::is_valid_request_packet(const std::uint8_t *buffer, std::size_t length)
+std::optional<Socks::Request> Socks::parse_requested_socks_mode(const std::uint8_t *buffer, std::size_t length)
 {
     if (buffer && length >= proto::request_header_min_length) {
         const auto* request = reinterpret_cast<const RequestHeader*>(buffer);
 
         if (request->version != proto::version)
-            return false;
+            return std::nullopt;
 
-        if (request->command != Request::tcp_connection)
-            return false;
+        if (request->command != Request::tcp_connection && request->command != Request::udp_port)
+            return std::nullopt;
 
         if (!(request->type == proto::ipv4 || request->type == proto::ipv6 || request->type == proto::dom))
-            return false;
+            return std::nullopt;
 
-        return true;
+        return static_cast<Request>(request->command);
     }
 
-    return false;
+    return std::nullopt;
 }
 
 bool Socks::get_remote_address_info(const std::uint8_t *buffer, std::size_t length, std::string &host, std::string &port)
@@ -72,7 +72,7 @@ bool Socks::get_remote_address_info(const std::uint8_t *buffer, std::size_t leng
         } else if (req->type == proto::dom) {
             auto domainLength = static_cast<std::size_t>(req->data[proto::dom_length_field_offset]);
             if (domainLength <= proto::max_dom_length) {
-                host.assign(reinterpret_cast<const char *>(&req->data[proto::dom_field_offset]), domainLength);
+                host.assign(reinterpret_cast<const char*>(&req->data[proto::dom_field_offset]), domainLength);
                 port = std::move(std::to_string(get_port_from_binary(req->data + domainLength + 1)));
             }
         } else {
