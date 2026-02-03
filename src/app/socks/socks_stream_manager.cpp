@@ -64,8 +64,9 @@ namespace mtls_mproxy
 
         SocksSession session{id, shared_from_this(), logger_factory_};
         session.support_udp_associate_mode(is_udp_associate_mode_enabled_);
-        SocksPair pair{id, std::move(upstream), nullptr, std::move(session)};
+        SocksPair pair{id, upstream, nullptr, std::move(session)};
         sessions_.insert({id, std::move(pair)});
+        //on_server_ready(upstream);
     }
 
     void SocksStreamManager::on_read(IoBuffer buffer, ServerStreamPtr stream)
@@ -90,6 +91,13 @@ namespace mtls_mproxy
     {
         if (auto it = sessions_.find(id); it != sessions_.end())
             it->second.server->write(std::move(buffer));
+    }
+
+    void SocksStreamManager::on_server_ready(ServerStreamPtr stream)
+    {
+        const auto sid = stream->id();
+        if (auto it = sessions_.find(sid); it != sessions_.end())
+            it->second.session.handle_on_accept();
     }
 
     void SocksStreamManager::on_read(IoBuffer buffer, ClientStreamPtr stream)

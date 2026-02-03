@@ -23,6 +23,7 @@ namespace mtls_mproxy
         virtual void on_error(net::error_code ec, ServerStreamPtr stream) = 0;
         virtual void read_server(int id) = 0;
         virtual void write_server(int id, IoBuffer event) = 0;
+        virtual void on_server_ready(ServerStreamPtr ptr) = 0;
 
         // Active session interface
         virtual void on_connect(IoBuffer event, ClientStreamPtr stream) = 0;

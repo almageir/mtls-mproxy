@@ -8,7 +8,7 @@ namespace mtls_mproxy
     SocksSession::SocksSession(int id, StreamManagerPtr mgr, const asynclog::LoggerFactory& logger_factory)
         : context_{id}, manager_{std::move(mgr)}, logger_{logger_factory.create("socks5_session")}
     {
-        state_ = SocksAuthRequest::instance();
+        state_ = SocksWaitConnection::instance();
     }
 
     void SocksSession::change_state(std::unique_ptr<SocksState> state)
@@ -39,6 +39,11 @@ namespace mtls_mproxy
     void SocksSession::handle_client_connect(IoBuffer event)
     {
         state_->handle_client_connect(*this, std::move(event));
+    }
+
+    void SocksSession::handle_on_accept()
+    {
+        state_->handle_on_accept(*this);
     }
 
     void SocksSession::handle_server_error(net::error_code ec)

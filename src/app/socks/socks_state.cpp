@@ -1,9 +1,10 @@
 #include "socks.h"
 #include "socks_state.h"
 #include "socks_session.h"
-#include "transport/stream_manager.h"
 
 #include <asynclog/scoped_logger.h>
+
+#include <asio/error.hpp>
 
 #include <format>
 
@@ -42,6 +43,7 @@ namespace
                   error == net::error::connection_aborted ||
                   error == net::error::connection_refused ||
                   error == net::error::connection_reset ||
+                  error == net::error::broken_pipe ||
                   error == net::error::timed_out ||
                   error == net::error::operation_aborted ||
                   error == net::error::bad_descriptor)) {
@@ -57,13 +59,14 @@ namespace mtls_mproxy
 {
     void SocksState::handle_server_read(SocksSession& session, IoBuffer buffer) {}
     void SocksState::handle_client_read(SocksSession& session, IoBuffer buffer) {}
+    void SocksState::handle_on_accept(SocksSession& session) {}
     void SocksState::handle_client_connect(SocksSession& session, IoBuffer buffer) {}
     void SocksState::handle_server_write(SocksSession& session, IoBuffer buffer) {}
     void SocksState::handle_client_write(SocksSession& session, IoBuffer buffer) {}
 
     void SocksState::handle_server_error(SocksSession& session, net::error_code ec)
     {
-        const auto errors = check_errors(session, ec, "Server");
+        const auto errors = check_errors(session, ec, "server");
         if (!errors.empty())
             session.logger().warn(errors);
         session.stop();
@@ -75,6 +78,12 @@ namespace mtls_mproxy
         if (!errors.empty())
             session.logger().warn(errors);
         session.stop();
+    }
+
+    void SocksWaitConnection::handle_on_accept(SocksSession& session)
+    {
+        session.read_from_server();
+        session.change_state(SocksAuthRequest::instance());
     }
 
     void SocksAuthRequest::handle_server_read(SocksSession& session, IoBuffer buffer) {
@@ -90,7 +99,7 @@ namespace mtls_mproxy
     }
 
     void SocksConnectionRequest::handle_server_write(SocksSession& session, IoBuffer buffer) {
-        session.manager()->read_server(session.id());
+        session.read_from_server();
     }
 
     void SocksConnectionRequest::handle_server_read(SocksSession& session, IoBuffer buffer) {
@@ -214,10 +223,7 @@ namespace mtls_mproxy
         session.read_from_server();
     }
 
-    void SocksDataUdpTransferMode::handle_server_write(SocksSession& session, IoBuffer buffer)
-    {
-        //session.read_from_server();
-    }
+    void SocksDataUdpTransferMode::handle_server_write(SocksSession& session, IoBuffer buffer) {}
 
     void SocksDataUdpTransferMode::handle_client_read(SocksSession& session, IoBuffer buffer)
     {
@@ -226,8 +232,5 @@ namespace mtls_mproxy
         session.read_from_client();
     }
 
-    void SocksDataUdpTransferMode::handle_client_write(SocksSession& session, IoBuffer buffer)
-    {
-        //session.read_from_client();
-    }
+    void SocksDataUdpTransferMode::handle_client_write(SocksSession& session, IoBuffer buffer) {}
 }

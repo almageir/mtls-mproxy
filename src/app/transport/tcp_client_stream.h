@@ -45,6 +45,9 @@ namespace mtls_mproxy
 
         std::array<std::uint8_t, max_buffer_size> read_buffer_;
         std::array<std::uint8_t, max_buffer_size> write_buffer_;
+
+        bool rip_{false};
+        bool wip_{false};
     };
 }
 

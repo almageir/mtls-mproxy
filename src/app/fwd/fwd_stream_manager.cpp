@@ -1,20 +1,22 @@
-#include "http_stream_manager.h"
+#include "fwd_stream_manager.h"
 #include "transport/tcp_client_stream.h"
 
 namespace mtls_mproxy
 {
-    HttpStreamManager::HttpStreamManager(asynclog::LoggerFactory log_factory)
+    FwdStreamManager::FwdStreamManager(asynclog::LoggerFactory log_factory, std::string host, std::string port)
         : logger_factory_{log_factory}
-        , logger_{logger_factory_.create("http_session_manager")}
+        , logger_{logger_factory_.create("tun_session_manager")}
+        , host_{std::move(host)}
+        , port_{std::move(port)}
     {
     }
 
-    void HttpStreamManager::stop(stream_ptr stream)
+    void FwdStreamManager::stop(stream_ptr stream)
     {
         stop(stream->id());
     }
 
-    void HttpStreamManager::stop(int id)
+    void FwdStreamManager::stop(int id)
     {
         if (auto it = sessions_.find(id); it != sessions_.end()) {
             it->second.client->stop();
@@ -34,100 +36,104 @@ namespace mtls_mproxy
         }
     }
 
-    void HttpStreamManager::on_close(stream_ptr stream)
+    void FwdStreamManager::on_close(stream_ptr stream)
     {
         stop(stream);
     }
 
-    void HttpStreamManager::on_error(net::error_code ec, ServerStreamPtr stream)
+    void FwdStreamManager::on_error(net::error_code ec, ServerStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_server_error(ec);
     }
 
-    void HttpStreamManager::on_error(net::error_code ec, ClientStreamPtr stream)
+    void FwdStreamManager::on_error(net::error_code ec, ClientStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_error(ec);
     }
 
-    void HttpStreamManager::on_accept(ServerStreamPtr upstream)
+    void FwdStreamManager::on_accept(ServerStreamPtr upstream)
     {
         upstream->start();
 
         const auto id{upstream->id()};
         logger_.debug(std::format("[{}] session created", id));
 
-        auto downstream = std::make_shared<TcpClientStream>(shared_from_this(), id, upstream->executor(), logger_factory_);
-
-        HttpSession session{id, shared_from_this(), logger_factory_};
-        HttpPair pair{id, upstream, std::move(downstream), std::move(session)};
+        FwdSession session{id, shared_from_this(), logger_factory_};
+        session.set_endpoint_info(host_, port_);
+        FwdPair pair{id, std::move(upstream), nullptr, std::move(session)};
         sessions_.insert({id, std::move(pair)});
-        //on_server_ready(upstream);
     }
 
-    void HttpStreamManager::on_read(IoBuffer buffer, ServerStreamPtr stream)
+    void FwdStreamManager::on_read(IoBuffer buffer, ServerStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_server_read(buffer);
     }
 
-    void HttpStreamManager::on_write(IoBuffer buffer, ServerStreamPtr stream)
+    void FwdStreamManager::on_write(IoBuffer buffer, ServerStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_server_write(buffer);
     }
 
-    void HttpStreamManager::read_server(int id)
+    void FwdStreamManager::read_server(int id)
     {
         if (auto it = sessions_.find(id); it != sessions_.end())
             it->second.server->read();
     }
 
-    void HttpStreamManager::write_server(int id, IoBuffer buffer)
+    void FwdStreamManager::write_server(int id, IoBuffer buffer)
     {
         if (auto it = sessions_.find(id); it != sessions_.end())
             it->second.server->write(std::move(buffer));
     }
 
-    void HttpStreamManager::on_server_ready(ServerStreamPtr stream)
+    void FwdStreamManager::on_server_ready(ServerStreamPtr stream)
     {
         const auto sid = stream->id();
-        if (auto it = sessions_.find(sid); it != sessions_.end())
+        if (auto it = sessions_.find(sid); it != sessions_.end()) {
+            auto downstream = std::make_shared<TcpClientStream>(shared_from_this(),
+                                                                sid,
+                                                                stream->executor(),
+                                                                logger_factory_);
+            it->second.client = std::move(downstream);
             it->second.session.handle_on_accept();
+        }
     }
 
-    void HttpStreamManager::on_read(IoBuffer buffer, ClientStreamPtr stream)
+    void FwdStreamManager::on_read(IoBuffer buffer, ClientStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_read(buffer);
     }
 
-    void HttpStreamManager::on_write(IoBuffer buffer, ClientStreamPtr stream)
+    void FwdStreamManager::on_write(IoBuffer buffer, ClientStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_write(buffer);
     }
 
-    void HttpStreamManager::on_connect(IoBuffer buffer, ClientStreamPtr stream)
+    void FwdStreamManager::on_connect(IoBuffer buffer, ClientStreamPtr stream)
     {
         if (auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_connect(buffer);
     }
 
-    void HttpStreamManager::read_client(int id)
+    void FwdStreamManager::read_client(int id)
     {
         if (auto it = sessions_.find(id); it != sessions_.end())
             it->second.client->read();
     }
 
-    void HttpStreamManager::write_client(int id, IoBuffer buffer)
+    void FwdStreamManager::write_client(int id, IoBuffer buffer)
     {
         if (auto it = sessions_.find(id); it != sessions_.end())
             it->second.client->write(std::move(buffer));
     }
 
-    void HttpStreamManager::connect(int id, std::string host, std::string service)
+    void FwdStreamManager::connect(int id, std::string host, std::string service)
     {
         if (auto it = sessions_.find(id); it != sessions_.end()) {
             it->second.client->set_host(std::move(host));
@@ -136,7 +142,7 @@ namespace mtls_mproxy
         }
     }
 
-    std::vector<std::uint8_t> HttpStreamManager::udp_associate(int id)
+    std::vector<std::uint8_t> FwdStreamManager::udp_associate(int id)
     {
         return {};
     }

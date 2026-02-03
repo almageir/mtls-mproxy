@@ -40,7 +40,7 @@ namespace mtls_mproxy
 
     TlsServerStream::~TlsServerStream()
     {
-        logger_.debug(std::format("[{}] tcp Server stream closed", id()));
+        logger_.debug(std::format("[{}] tcp server stream closed", id()));
     }
 
     net::any_io_executor TlsServerStream::executor() { return socket_.get_executor(); }
@@ -56,12 +56,9 @@ namespace mtls_mproxy
         if (!socket_.lowest_layer().is_open())
             return;
 
-        net::error_code ignored_ec;
-        socket_.lowest_layer().cancel(ignored_ec);
-
         socket_.async_shutdown(
             [this, self{shared_from_this()}](const net::error_code& ec) {
-                if (ec)
+                if (ec && ec != net::error::eof && ec != net::ssl::error::stream_truncated)
                     handle_error(ec);
                 socket_.lowest_layer().close();
             });
@@ -81,9 +78,8 @@ namespace mtls_mproxy
             net::ssl::stream_base::server,
             [this, self{shared_from_this()}](const net::error_code& ec) {
                 if (!ec) {
-                    do_read();
-                }
-                else {
+                    manager()->on_server_ready(shared_from_this());
+                } else {
                     handle_error(ec);
                 }
             });
@@ -97,8 +93,7 @@ namespace mtls_mproxy
                 [this, self{shared_from_this()}](const net::error_code& ec, size_t) {
                 if (!ec) {
                     manager()->on_write(std::move(IoBuffer{}), shared_from_this());
-                }
-                else {
+                } else {
                     handle_error(ec);
                 }
             });
@@ -117,9 +112,13 @@ namespace mtls_mproxy
                 if (!ec) {
                     IoBuffer event(read_buffer_.data(), read_buffer_.data() + length);
                     manager()->on_read(std::move(event), shared_from_this());
-                }
-                else {
-                    handle_error(ec);
+                } else {
+                    if (ec == net::error::eof || ec == net::ssl::error::stream_truncated) {
+                        socket_.lowest_layer().close();
+                        handle_error({});
+                    } else {
+                        handle_error(ec);
+                    }
                 }
             });
     }

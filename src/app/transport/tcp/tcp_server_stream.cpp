@@ -32,10 +32,10 @@ namespace
 
 namespace mtls_mproxy
 {
-    tcp_server_stream::tcp_server_stream(const StreamManagerPtr& ptr,
-                                         int id,
-                                         tcp::socket&& socket,
-                                         const asynclog::LoggerFactory& log_factory)
+    TcpServerStream::TcpServerStream(const StreamManagerPtr& ptr,
+                                     int id,
+                                     tcp::socket&& socket,
+                                     const asynclog::LoggerFactory& log_factory)
         : ServerStream{ptr, id}
         , socket_{std::move(socket)}
         , logger_{log_factory.create("tcp_server_stream")}
@@ -45,20 +45,22 @@ namespace mtls_mproxy
     {
     }
 
-    tcp_server_stream::~tcp_server_stream()
+    TcpServerStream::~TcpServerStream()
     {
-        logger_.debug(std::format("[{}] tcp Server stream closed", id()));
+        logger_.debug(std::format("[{}] tcp server stream closed", id()));
     }
 
-    net::any_io_executor tcp_server_stream::executor() { return socket_.get_executor(); }
+    net::any_io_executor TcpServerStream::executor() { return socket_.get_executor(); }
 
-    void tcp_server_stream::do_start()
+    void TcpServerStream::do_start()
     {
         logger_.debug(std::format("[{}] incoming connection from client: [{}]", id(), ep_to_str(socket_)));
-        do_read();
+        net::post(socket_.get_executor(), [this, self{shared_from_this()}]() {
+            manager()->on_server_ready(shared_from_this());
+        });
     }
 
-    void tcp_server_stream::do_stop()
+    void TcpServerStream::do_stop()
     {
         net::error_code ignored_ec;
         socket_.shutdown(tcp::socket::shutdown_both, ignored_ec);
@@ -66,7 +68,7 @@ namespace mtls_mproxy
             udp_socket_.value().close();
     }
 
-    void tcp_server_stream::do_write(IoBuffer event)
+    void TcpServerStream::do_write(IoBuffer event)
     {
         if (!use_udp_) {
             write_tcp(std::move(event));
@@ -76,7 +78,8 @@ namespace mtls_mproxy
 
             // A read request via TCP is needed in order to receive notification of the completion of
             // a connection with a client in SOCKS5 UDP_ASSOCIATE mode
-            do_read();
+            if (use_udp_)
+                do_read();
         } else {
             IoBuffer packet{};
 
@@ -96,14 +99,14 @@ namespace mtls_mproxy
         }
     }
 
-    std::vector<std::uint8_t> tcp_server_stream::do_udp_associate()
+    std::vector<std::uint8_t> TcpServerStream::do_udp_associate()
     {
         udp::endpoint udp_bind_request_ep{socket_.local_endpoint().address(), 0};
         udp_socket_ = udp::socket(socket_.get_executor(), udp_bind_request_ep);
         return aux::endpoint_to_bytes(udp_socket_->local_endpoint());
     }
 
-    void tcp_server_stream::do_read()
+    void TcpServerStream::do_read()
     {
         if (!is_udp_enabled()) {
             read_tcp();
@@ -112,7 +115,7 @@ namespace mtls_mproxy
         }
     }
 
-    void tcp_server_stream::handle_error(const net::error_code& ec)
+    void TcpServerStream::handle_error(const net::error_code& ec)
     {
         manager()->on_error(ec, shared_from_this());
     }
@@ -122,7 +125,7 @@ namespace mtls_mproxy
     // +---- + ------ + ------ + ---------- + -------- + ---------- +
     // |  2  |    1   |   1    |  Variable  |    2     |  Variable  |
     // +---- + ------ + ------ + ---------- + -------- + ---------- +
-    void tcp_server_stream::write_udp()
+    void TcpServerStream::write_udp()
     {
         if (udp_write_queue_.empty())
             return;
@@ -149,20 +152,26 @@ namespace mtls_mproxy
                 });
     }
 
-    void tcp_server_stream::write_tcp(IoBuffer buffer)
+    void TcpServerStream::write_tcp(IoBuffer buffer)
     {
+        if (wip_) {
+            logger_.debug(std::format("[{}] write in progress", id()));
+            return;
+        }
+        wip_ = true;
         std::ranges::copy(buffer, write_buffer_.begin());
         net::async_write(
             socket_, net::buffer(write_buffer_, buffer.size()),
             [this, self{shared_from_this()}](const net::error_code& ec, size_t) {
-                if (!ec)
+                if (!ec) {
+                    wip_ = false;
                     manager()->on_write(std::move(IoBuffer{}), shared_from_this());
-                else
+                } else
                     handle_error(ec);
             });
     }
 
-    void tcp_server_stream::read_udp()
+    void TcpServerStream::read_udp()
     {
         (*udp_socket_).async_receive_from(
             net::buffer(udp_read_buffer_), sender_ep_,
@@ -179,13 +188,19 @@ namespace mtls_mproxy
             });
     }
 
-    void tcp_server_stream::read_tcp()
+    void TcpServerStream::read_tcp()
     {
+        if (rip_) {
+            logger_.debug(std::format("[{}] read in progress", id()));
+            return;
+        }
+        rip_ = true;
         socket_.async_read_some(
             net::buffer(read_buffer_),
             [this, self{shared_from_this()}](const net::error_code& ec, const size_t length)
             {
                 if (!ec) {
+                    rip_ = false;
                     IoBuffer event(read_buffer_.data(), read_buffer_.data() + length);
                     manager()->on_read(std::move(event), shared_from_this());
                 }

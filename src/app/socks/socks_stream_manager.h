@@ -28,6 +28,7 @@ namespace mtls_mproxy
         void on_error(net::error_code ec, ServerStreamPtr stream) override;
         void read_server(int id) override;
         void write_server(int id, IoBuffer buffer) override;
+        void on_server_ready(ServerStreamPtr ptr) override;
 
         void on_connect(IoBuffer buffer, ClientStreamPtr stream) override;
         void on_read(IoBuffer buffer, ClientStreamPtr stream) override;
@@ -52,8 +53,6 @@ namespace mtls_mproxy
         asynclog::ScopedLogger logger_;
         bool is_udp_associate_mode_enabled_{false};
     };
-
-    using socks5_stream_manager_ptr = std::shared_ptr<SocksStreamManager>;
 }
 
 #endif // MTLS_MPROXY_SOCKS_STREAM_MANAGER_H

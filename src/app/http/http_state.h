@@ -20,6 +20,7 @@ namespace mtls_mproxy
         virtual ~HttpState() = default;
         virtual void handle_server_read(HttpSession& session, IoBuffer event);
         virtual void handle_client_read(HttpSession& session, IoBuffer event);
+        virtual void handle_on_accept(HttpSession& session);
         virtual void handle_client_connect(HttpSession& session, IoBuffer event);
         virtual void handle_server_write(HttpSession& session, IoBuffer event);
         virtual void handle_client_write(HttpSession& session, IoBuffer event);
@@ -31,6 +32,7 @@ namespace mtls_mproxy
     {
     public:
         static auto instance() { return std::make_unique<HttpWaitRequest>(); };
+        void handle_on_accept(HttpSession& session) override;
         void handle_server_read(HttpSession& session, IoBuffer event) override;
     };
 

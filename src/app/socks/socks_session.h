@@ -43,6 +43,7 @@ namespace mtls_mproxy
         void handle_server_write(IoBuffer event);
         void handle_client_write(IoBuffer event);
         void handle_client_connect(IoBuffer event);
+        void handle_on_accept();
         void handle_server_error(net::error_code ec);
         void handle_client_error(net::error_code ec);
 

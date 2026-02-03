@@ -20,11 +20,20 @@ namespace mtls_mproxy
         virtual ~SocksState() = default;
         virtual void handle_server_read(SocksSession& session, IoBuffer event);
         virtual void handle_client_read(SocksSession& session, IoBuffer event);
+        virtual void handle_on_accept(SocksSession& session);
         virtual void handle_client_connect(SocksSession& session, IoBuffer event);
         virtual void handle_server_write(SocksSession& session, IoBuffer event);
         virtual void handle_client_write(SocksSession& session, IoBuffer event);
         virtual void handle_server_error(SocksSession& session, net::error_code ec);
         virtual void handle_client_error(SocksSession& session, net::error_code ec);
+    };
+
+
+    class SocksWaitConnection final : public SocksState
+    {
+    public:
+        static auto instance() { return std::make_unique<SocksWaitConnection>(); };
+        void handle_on_accept(SocksSession& session) override;
     };
 
     class SocksAuthRequest final : public SocksState

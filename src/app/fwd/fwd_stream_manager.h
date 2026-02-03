@@ -1,22 +1,22 @@
-#ifndef MTLS_MPROXY_HTTP_STREAM_MANAGER_H
-#define MTLS_MPROXY_HTTP_STREAM_MANAGER_H
+#ifndef MTLS_MPROXY_FWD_STREAM_MANAGER_H
+#define MTLS_MPROXY_FWD_STREAM_MANAGER_H
 
 #include "transport/stream_manager.h"
-#include "http_session.h"
+#include "fwd_session.h"
 
 #include <asynclog/logger_factory.h>
 
 namespace mtls_mproxy
 {
-    class HttpStreamManager final
+    class FwdStreamManager final
         : public StreamManager
     {
     public:
-        explicit HttpStreamManager(asynclog::LoggerFactory log_factory);
-        ~HttpStreamManager() override = default;
+        explicit FwdStreamManager(asynclog::LoggerFactory log_factory, std::string host, std::string port);
+        ~FwdStreamManager() override = default;
 
-        HttpStreamManager(const HttpStreamManager& other) = delete;
-        HttpStreamManager& operator=(const HttpStreamManager& other) = delete;
+        FwdStreamManager(const FwdStreamManager& other) = delete;
+        FwdStreamManager& operator=(const FwdStreamManager& other) = delete;
 
         void stop(stream_ptr stream) override;
         void stop(int id) override;
@@ -28,7 +28,7 @@ namespace mtls_mproxy
         void on_error(net::error_code ec, ServerStreamPtr stream) override;
         void read_server(int id) override;
         void write_server(int id, IoBuffer event) override;
-        void on_server_ready(ServerStreamPtr ptr) override;
+        void on_server_ready(ServerStreamPtr stream) override;
 
         void on_connect(IoBuffer event, ClientStreamPtr stream) override;
         void on_read(IoBuffer event, ClientStreamPtr stream) override;
@@ -41,17 +41,19 @@ namespace mtls_mproxy
         std::vector<std::uint8_t> udp_associate(int id) override;
 
     private:
-        struct HttpPair {
+        struct FwdPair {
             int id;
             ServerStreamPtr server;
             ClientStreamPtr client;
-            HttpSession session;
+            FwdSession session;
         };
 
-        std::unordered_map<int, HttpPair> sessions_;
+        std::unordered_map<int, FwdPair> sessions_;
         asynclog::LoggerFactory logger_factory_;
         asynclog::ScopedLogger logger_;
+        std::string host_;
+        std::string port_;
     };
 }
 
-#endif // MTLS_MPROXY_HTTP_STREAM_MANAGER_H
+#endif // MTLS_MPROXY_FWD_STREAM_MANAGER_H

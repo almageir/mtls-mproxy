@@ -1,18 +1,19 @@
 #include "http.h"
 #include "http_state.h"
 #include "http_session.h"
-#include "transport/stream_manager.h"
+
+#include <asio/error.hpp>
 
 namespace
 {
     namespace net = asio;
 
-    const std::string kHttpError500 =
+    constexpr std::string_view kHttpError500 =
         "HTTP/1.1 500 Internal Server Error\r\n"
         "Connection : Closed\r\n"
         "\r\n";
 
-    const std::string kHttpDone =
+    constexpr std::string_view kHttpDone =
         "HTTP/1.1 200 OK\r\n"
         "\r\n";
 
@@ -26,6 +27,7 @@ namespace
                   error == net::error::connection_aborted ||
                   error == net::error::connection_refused ||
                   error == net::error::connection_reset ||
+                  error == net::error::broken_pipe ||
                   error == net::error::timed_out ||
                   error == net::error::operation_aborted ||
                   error == net::error::bad_descriptor)) {
@@ -41,13 +43,14 @@ namespace mtls_mproxy
 {
     void HttpState::handle_server_read(HttpSession& session, IoBuffer buffer) {}
     void HttpState::handle_client_read(HttpSession& session, IoBuffer buffer) {}
+    void HttpState::handle_on_accept(HttpSession& session) {}
     void HttpState::handle_client_connect(HttpSession& session, IoBuffer buffer) {}
     void HttpState::handle_server_write(HttpSession& session, IoBuffer buffer) {}
     void HttpState::handle_client_write(HttpSession& session, IoBuffer buffer) {}
 
     void HttpState::handle_server_error(HttpSession& session, net::error_code ec)
     {
-        const auto errors = check_errors(session, ec, "Server");
+        const auto errors = check_errors(session, ec, "server");
         if (!errors.empty())
             session.logger().warn(errors);
         session.stop();
@@ -59,6 +62,11 @@ namespace mtls_mproxy
         if (!errors.empty())
             session.logger().warn(errors);
         session.stop();
+    }
+
+    void HttpWaitRequest::handle_on_accept(HttpSession& session)
+    {
+        session.read_from_server();
     }
 
     void HttpWaitRequest::handle_server_read(HttpSession& session, IoBuffer buffer)
@@ -110,7 +118,7 @@ namespace mtls_mproxy
     void HttpReadyTransferData::handle_client_write(HttpSession& session, IoBuffer buffer)
     {
         session.read_from_server();
-        session.read_from_server();
+        session.read_from_client();
         session.change_state(HttpDataTransferMode::instance());
     }
 

@@ -74,10 +74,10 @@ namespace mtls_mproxy
         acceptor_.async_accept(
         [this](const net::error_code& ec, tcp::socket socket) {
                 if (!acceptor_.is_open()) {
-                    logger_.debug("tls proxy Server acceptor is closed");
+                    logger_.debug("tls proxy server acceptor is closed");
 
                     if (ec)
-                        logger_.debug("tls proxy Server error: " + ec.message());
+                        logger_.debug("tls proxy server error: " + ec.message());
 
                     return;
                 }
@@ -97,6 +97,6 @@ namespace mtls_mproxy
 
     TlsServer::~TlsServer()
     {
-        logger_.debug("tls proxy Server stopped");
+        logger_.debug("tls proxy server stopped");
     }
 }

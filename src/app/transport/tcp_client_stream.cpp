@@ -86,11 +86,17 @@ namespace mtls_mproxy
 
     void TcpClientStream::do_write(IoBuffer event)
     {
+        if (wip_) {
+            logger_.debug(std::format("[{}] write in progress", id()));
+            return;
+        }
+        wip_ = true;
         std::copy(event.begin(), event.end(), write_buffer_.begin());
         net::async_write(
             socket_, net::buffer(write_buffer_, event.size()),
             [this, self{shared_from_this()}](const net::error_code& ec, std::size_t) {
             if (!ec) {
+                wip_ = false;
                 manager()->on_write(std::move(IoBuffer{}), shared_from_this());
             }
             else {
@@ -101,10 +107,16 @@ namespace mtls_mproxy
 
     void TcpClientStream::do_read()
     {
+        if (rip_) {
+            logger_.debug(std::format("[{}] read in progress", id()));
+            return;
+        }
+        rip_ = true;
         socket_.async_read_some(
             net::buffer(read_buffer_),
             [this, self{shared_from_this()}](const net::error_code& ec, const std::size_t length) {
             if (!ec && length) {
+                rip_ = false;
                 IoBuffer event{read_buffer_.data(), read_buffer_.data() + length};
                 manager()->on_read(std::move(event), shared_from_this());
             }

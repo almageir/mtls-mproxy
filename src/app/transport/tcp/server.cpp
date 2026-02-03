@@ -26,7 +26,7 @@ namespace mtls_mproxy
         acceptor_.bind(ep);
         acceptor_.listen();
 
-        logger_.info("proxy Server starts on port: " + port);
+        logger_.info("proxy server starts on port: " + port);
         start_accept();
     }
 
@@ -45,10 +45,10 @@ namespace mtls_mproxy
     {
         signals_.async_wait(
             [this](net::error_code /*ec*/, int /*signno*/) {
-            logger_.info("proxy Server stopping");
+            logger_.info("proxy server stopping");
             acceptor_.close();
             ctx_.stop();
-            logger_.info("proxy Server stopped");
+            logger_.info("proxy server stopped");
         });
     }
 
@@ -58,15 +58,15 @@ namespace mtls_mproxy
         acceptor_.async_accept(
             [this](const net::error_code& ec, tcp::socket socket) {
                 if (!acceptor_.is_open()) {
-                    logger_.debug("proxy Server acceptor is closed");
+                    logger_.debug("proxy server acceptor is closed");
                     if (ec)
-                        logger_.debug("proxy Server error: " + ec.message());
+                        logger_.debug("proxy server error: " + ec.message());
 
                     return;
                 }
 
                 if (!ec) {
-                    auto new_stream = std::make_shared<tcp_server_stream>(
+                    auto new_stream = std::make_shared<TcpServerStream>(
                         stream_manager_,
                         ++stream_id_,
                         std::move(socket),
@@ -80,6 +80,6 @@ namespace mtls_mproxy
 
     Server::~Server()
     {
-        logger_.debug("proxy Server stopped");
+        logger_.debug("proxy server stopped");
     }
 }

@@ -16,14 +16,14 @@ namespace mtls_mproxy
     using tcp = asio::ip::tcp;
     using udp = asio::ip::udp;
 
-    class tcp_server_stream final : public ServerStream
+    class TcpServerStream final : public ServerStream
     {
     public:
-        tcp_server_stream(const StreamManagerPtr& ptr,
+        TcpServerStream(const StreamManagerPtr& ptr,
                           int id,
                           tcp::socket&& socket,
                           const asynclog::LoggerFactory& log_factory);
-        ~tcp_server_stream() override;
+        ~TcpServerStream() override;
 
         net::any_io_executor executor() override;
 
@@ -55,6 +55,9 @@ namespace mtls_mproxy
         std::array<std::uint8_t, max_buffer_size> udp_read_buffer_;
         std::queue<IoBuffer> udp_write_queue_;
         bool udp_write_in_progress_{false};
+
+        bool rip_{false};
+        bool wip_{false};
     };
 }
 

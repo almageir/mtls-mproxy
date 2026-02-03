@@ -89,6 +89,14 @@ target_sources(mtls-mproxy
         src/app/http/http_stream_manager.h
         src/app/http/http_stream_manager.cpp
 
+        # Http(s) proxy
+        src/app/fwd/fwd_session.h
+        src/app/fwd/fwd_session.cpp
+        src/app/fwd/fwd_state.h
+        src/app/fwd/fwd_state.cpp
+        src/app/fwd/fwd_stream_manager.h
+        src/app/fwd/fwd_stream_manager.cpp
+
         # Socks5 proxy
         src/app/socks/socks.h
         src/app/socks/socks.cpp

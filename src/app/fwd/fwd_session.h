@@ -1,7 +1,7 @@
-#ifndef MTLS_MPROXY_HTTP_SESSION_H
-#define MTLS_MPROXY_HTTP_SESSION_H
+#ifndef MTLS_MPROXY_FWD_SESSION_H
+#define MTLS_MPROXY_FWD_SESSION_H
 
-#include "http_state.h"
+#include "fwd_state.h"
 
 #include <asynclog/scoped_logger.h>
 
@@ -16,9 +16,9 @@ namespace mtls_mproxy
     class StreamManager;
     using StreamManagerPtr = std::shared_ptr<StreamManager>;
 
-    class HttpSession
+    class FwdSession
     {
-        struct HttpCtx {
+        struct FwdCtx {
             int id;
             std::vector<uint8_t> response;
             std::string host;
@@ -28,8 +28,8 @@ namespace mtls_mproxy
         };
 
     public:
-        HttpSession(int id, StreamManagerPtr manager, asynclog::LoggerFactory logger_factory);
-        void change_state(std::unique_ptr<HttpState> state);
+        FwdSession(int id, StreamManagerPtr manager, asynclog::LoggerFactory logger_factory);
+        void change_state(std::unique_ptr<FwdState> state);
         void handle_server_read(IoBuffer& event);
         void handle_client_read(IoBuffer& event);
         void handle_server_write(IoBuffer& event);
@@ -58,8 +58,6 @@ namespace mtls_mproxy
             context().service = service;
         }
 
-        void set_response(IoBuffer buffer) { context().response = std::move(buffer); }
-
         void connect();
         void stop();
         void read_from_server();
@@ -72,11 +70,11 @@ namespace mtls_mproxy
         asynclog::ScopedLogger& logger() { return logger_; }
 
     private:
-        HttpCtx context_;
-        std::unique_ptr<HttpState> state_;
+        FwdCtx context_;
+        std::unique_ptr<FwdState> state_;
         StreamManagerPtr manager_;
         asynclog::ScopedLogger logger_;
     };
 }
 
-#endif // MTLS_MPROXY_HTTP_SESSION_H
+#endif // MTLS_MPROXY_FWD_SESSION_H
