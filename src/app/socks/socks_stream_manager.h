@@ -10,6 +10,7 @@ namespace mtls_mproxy
 {
     class SocksStreamManager final
         : public StreamManager
+        , public std::enable_shared_from_this<SocksStreamManager>
     {
     public:
         explicit SocksStreamManager(const asynclog::LoggerFactory& log_factory, bool udp_enabled = false);
@@ -18,9 +19,7 @@ namespace mtls_mproxy
         SocksStreamManager(const SocksStreamManager& other) = delete;
         SocksStreamManager& operator=(const SocksStreamManager& other) = delete;
 
-        void stop(stream_ptr stream) override;
         void stop(int id) override;
-        void on_close(stream_ptr stream) override;
 
         void on_accept(ServerStreamPtr stream) override;
         void on_read(IoBuffer buffer, ServerStreamPtr stream) override;

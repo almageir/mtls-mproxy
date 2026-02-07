@@ -5,22 +5,20 @@ namespace mtls_mproxy
 {
     FwdStreamManager::FwdStreamManager(const asynclog::LoggerFactory& log_factory, std::string host, std::string port)
         : logger_factory_{log_factory}
-        , logger_{logger_factory_.create("tun_session_manager")}
+        , logger_{logger_factory_.create("fwd_session_manager")}
         , host_{std::move(host)}
         , port_{std::move(port)}
     {
     }
 
-    void FwdStreamManager::stop(stream_ptr stream)
-    {
-        stop(stream->id());
-    }
-
     void FwdStreamManager::stop(int id)
     {
         if (const auto it = sessions_.find(id); it != sessions_.end()) {
-            it->second.client->stop();
-            it->second.server->stop();
+            auto& [_, found] = *it;
+            if (found.client)
+                found.client->stop();
+            if (found.server)
+                found.server->stop();
 
             const auto& ses = it->second.session;
 
@@ -34,11 +32,6 @@ namespace mtls_mproxy
                             sessions_.size()));
             sessions_.erase(it);
         }
-    }
-
-    void FwdStreamManager::on_close(stream_ptr stream)
-    {
-        stop(stream);
     }
 
     void FwdStreamManager::on_error(net::error_code ec, ServerStreamPtr stream)
@@ -55,15 +48,15 @@ namespace mtls_mproxy
 
     void FwdStreamManager::on_accept(ServerStreamPtr upstream)
     {
-        upstream->start();
-
         const auto id{upstream->id()};
         logger_.debug(std::format("[{}] session created", id));
 
         FwdSession session{id, shared_from_this(), logger_factory_};
         session.set_endpoint_info(host_, port_);
-        FwdPair pair{id, std::move(upstream), nullptr, std::move(session)};
+        FwdPair pair{id, upstream, nullptr, std::move(session)};
         sessions_.insert({id, std::move(pair)});
+
+        upstream->start();
     }
 
     void FwdStreamManager::on_read(IoBuffer buffer, ServerStreamPtr stream)

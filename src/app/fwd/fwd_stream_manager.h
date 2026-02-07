@@ -12,6 +12,7 @@ namespace mtls_mproxy
 {
     class FwdStreamManager final
         : public StreamManager
+        , public std::enable_shared_from_this<FwdStreamManager>
     {
     public:
         explicit FwdStreamManager(const asynclog::LoggerFactory& log_factory, std::string host, std::string port);
@@ -20,9 +21,7 @@ namespace mtls_mproxy
         FwdStreamManager(const FwdStreamManager& other) = delete;
         FwdStreamManager& operator=(const FwdStreamManager& other) = delete;
 
-        void stop(stream_ptr stream) override;
         void stop(int id) override;
-        void on_close(stream_ptr stream) override;
 
         void on_accept(ServerStreamPtr stream) override;
         void on_read(IoBuffer event, ServerStreamPtr stream) override;

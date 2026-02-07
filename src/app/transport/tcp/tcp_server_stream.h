@@ -16,7 +16,9 @@ namespace mtls_mproxy
     using tcp = asio::ip::tcp;
     using udp = asio::ip::udp;
 
-    class TcpServerStream final : public ServerStream
+    class TcpServerStream final
+        : public ServerStream
+        , public std::enable_shared_from_this<TcpServerStream>
     {
     public:
 
@@ -24,7 +26,13 @@ namespace mtls_mproxy
                                                        int id,
                                                        tcp::socket&& socket,
                                                        const asynclog::LoggerFactory& log_factory);
-            ~TcpServerStream() override;
+        ~TcpServerStream() override;
+
+        void start() override;
+        void stop() override;
+        void read() override;
+        void write(IoBuffer event) override;
+        std::vector<std::uint8_t> udp_associate() override;
 
         net::any_io_executor executor() override;
 
@@ -34,11 +42,6 @@ namespace mtls_mproxy
                         tcp::socket&& socket,
                         const asynclog::LoggerFactory& log_factory);
 
-        void do_start() override;
-        void do_stop() override;
-        void do_read() override;
-        void do_write(IoBuffer event) override;
-        std::vector<std::uint8_t> do_udp_associate() override;
 
         void handle_error(const net::error_code& ec);
         bool is_udp_enabled() const { return udp_socket_.has_value(); }

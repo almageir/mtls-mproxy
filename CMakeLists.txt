@@ -54,7 +54,6 @@ target_sources(mtls-mproxy
         src/app/auxiliary/helpers.h
         src/app/auxiliary/helpers.cpp
         src/app/transport/io_buffer.h
-        src/app/transport/stream.h
         src/app/transport/server_stream.h
         src/app/transport/client_stream.h
         src/app/transport/stream_manager.h

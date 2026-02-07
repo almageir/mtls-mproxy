@@ -7,7 +7,7 @@ namespace mtls_mproxy
 {
     FwdSession::FwdSession(int id, StreamManagerPtr mgr, asynclog::LoggerFactory logger_factory)
         : context_{id}, manager_{std::move(mgr)}
-        , logger_{logger_factory.create("http_session")}
+        , logger_{logger_factory.create("fwd_session")}
     {
         state_ = FwdWaitConnection::instance();
     }

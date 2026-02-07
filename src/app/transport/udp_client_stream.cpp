@@ -50,7 +50,7 @@ namespace
             return "socket not opened";
 
         net::error_code ec;
-        const auto& rep = (dir == eRemote) ? sock.remote_endpoint(ec) : sock.local_endpoint(ec);
+        const auto rep = (dir == eRemote) ? sock.remote_endpoint(ec) : sock.local_endpoint(ec);
         if (ec)
         {
             return std::format("{}: {}",
@@ -65,39 +65,39 @@ namespace
 namespace mtls_mproxy
 {
     UdpClientStream::UdpClientStream(const StreamManagerPtr& ptr,
-                                     int id, net::any_io_executor ctx,
-                                     const asynclog::LoggerFactory& logger_factory)
+                                     int id, const net::any_io_executor& ctx,
+                                     const asynclog::LoggerFactory& log_factory)
         : ClientStream{ptr, id}
         , socket_{ctx, udp::v4()}
         , resolver_{ctx}
-        , logger_{logger_factory.create("udp_client")}
-        , read_buffer_{}/*, write_buffer_{}*/
-    {
-    }
+        , logger_{log_factory.create("udp_client")}
+        , read_buffer_{}
+    {}
 
     UdpClientStream::~UdpClientStream()
     {
         logger_.debug(std::format("[{}] udp client stream closed", id()));
     }
 
-    void UdpClientStream::do_start() {
+    void UdpClientStream::start()
+    {
         socket_.bind(udp::endpoint{udp::v4(), 0});
-        do_read();
+        read();
     }
 
-    void UdpClientStream::do_stop()
+    void UdpClientStream::stop()
     {
         net::error_code ignored_ec;
         socket_.shutdown(udp::socket::shutdown_both, ignored_ec);
     }
 
-    void UdpClientStream::do_write(IoBuffer event)
+    void UdpClientStream::write(IoBuffer event)
     {
         std::size_t data_offset = determine_udp_data_offset(event);
 
         std::string addr, port;
         if (!Socks::get_remote_address_info(event.data(), event.size(), addr, port) || data_offset == 0) {
-            logger_.warn(std::format("[{}] invalide address requested", id()));
+            logger_.warn(std::format("[{}] invalid address requested", id()));
             return;
         }
 
@@ -131,20 +131,19 @@ namespace mtls_mproxy
 
         logger_.info(std::format("[{}] requested ip address [{}:{}]", id(), packet.addr, packet.port));
 
-        udp::endpoint target_endpoint(asio::ip::make_address(packet.addr), std::stoi(packet.port));
+        const udp::endpoint target_endpoint(asio::ip::make_address(packet.addr), std::stoi(packet.port));
 
         socket_.async_send_to(
             net::buffer(packet.data, packet.data.size()),
             target_endpoint,
             [this, self{shared_from_this()}](const net::error_code& ec, std::size_t bytes_sent) {
+                write_in_progress_ = false;
                 if (!ec) {
                     write_queue_.pop();
-                    write_in_progress_ = false;
                     manager()->on_write(shared_from_this());
                     if (!write_queue_.empty())
                         write_packet();
                 } else {
-                    write_in_progress_ = false;
                     handle_error(ec);
                 }
             });
@@ -164,7 +163,8 @@ namespace mtls_mproxy
         logger_.info(std::format("[{}] requested domain address [{}:{}]", id(), packet.addr, packet.port));
         resolver_.async_resolve(
             packet.addr, packet.port,
-            [this, self{shared_from_this()}](const net::error_code& ec, udp::resolver::results_type results) {
+            [this, self{shared_from_this()}](const net::error_code& ec, const udp::resolver::results_type &results) {
+                resolve_in_progress_ = false;
                 if (!ec) {
                     auto packet = dns_queue_.front();
                     udp::endpoint ep{results.begin()->endpoint().address(),
@@ -174,30 +174,25 @@ namespace mtls_mproxy
                                              packet.addr, packet.port, aux::to_string(ep)));
 
                     packet.addr = ep.address().to_string();
-
                     write_queue_.emplace(std::move(packet));
                     dns_queue_.pop();
-                    resolve_in_progress_ = false;
                     if (!dns_queue_.empty())
                         make_dns_resolve();
                 } else {
-                    resolve_in_progress_ = false;
                     handle_error(ec);
                 }
             });
     }
 
-    void UdpClientStream::do_read()
+    void UdpClientStream::read()
     {
         socket_.async_receive_from(
             net::buffer(read_buffer_), sender_ep_,
             [this, self{shared_from_this()}](const net::error_code& ec, const size_t length) {
                 if (!ec) {
-                    uint8_t* data = read_buffer_.data();
                     IoBuffer event(read_buffer_.data(), read_buffer_.data() + length);
-                    manager()->on_read(std::move(event), shared_from_this());
-                }
-                else {
+                    manager()->on_read(std::move(event), self);
+                } else {
                     handle_error(ec);
                 }
             });
@@ -208,7 +203,7 @@ namespace mtls_mproxy
         manager()->on_error(ec, shared_from_this());
     }
 
-    void UdpClientStream::do_set_host(std::string host) {}
+    void UdpClientStream::set_host(std::string host) {}
 
-    void UdpClientStream::do_set_service(std::string service) {}
+    void UdpClientStream::set_service(std::string service) {}
 }

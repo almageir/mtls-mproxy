@@ -12,7 +12,9 @@ namespace mtls_mproxy
     namespace net = asio;
     using tcp = asio::ip::tcp;
 
-    class TcpClientStream final : public ClientStream
+    class TcpClientStream final
+        : public ClientStream
+        , public std::enable_shared_from_this<TcpClientStream>
     {
     public:
         ~TcpClientStream() override;
@@ -23,24 +25,24 @@ namespace mtls_mproxy
             net::any_io_executor ctx,
             const asynclog::LoggerFactory& log_factory);
 
+        void start() override;
+        void stop() override;
+        void read() override;
+        void write(IoBuffer event) override;
+
+        void connect(tcp::resolver::results_type&& results);
+
     private:
         TcpClientStream(const StreamManagerPtr& ptr,
                         int id,
                         net::any_io_executor ctx,
                         const asynclog::LoggerFactory& log_factory);
 
-        void do_start() override;
-        void do_stop() override;
-
-        void do_connect(tcp::resolver::results_type&& results);
-
-        void do_read() override;
-        void do_write(IoBuffer event) override;
 
         void handle_error(const net::error_code& ec);
 
-        void do_set_host(std::string host) override;
-        void do_set_service(std::string service) override;
+        void set_host(std::string host) override;
+        void set_service(std::string service) override;
 
         tcp::socket socket_;
         tcp::resolver resolver_;

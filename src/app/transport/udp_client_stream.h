@@ -19,30 +19,29 @@ namespace mtls_mproxy
         std::string port;
     };
 
-    class UdpClientStream final : public ClientStream
+    class UdpClientStream final
+        : public ClientStream
+        , public std::enable_shared_from_this<UdpClientStream>
     {
     public:
         UdpClientStream(const StreamManagerPtr& ptr,
                         int id,
-                        net::any_io_executor ctx,
+                        const net::any_io_executor &ctx,
                         const asynclog::LoggerFactory& log_factory);
         ~UdpClientStream() override;
 
+        void start() override;
+        void stop() override;
+        void read() override;
+        void write(IoBuffer event) override;
+
+        void set_host(std::string host) override;
+        void set_service(std::string service) override;
+
     private:
-        void do_start() override;
-        void do_stop() override;
-
-        void do_read() override;
-        void do_write(IoBuffer event) override;
-
         void write_packet();
         void make_dns_resolve();
-
-
         void handle_error(const net::error_code& ec);
-
-        void do_set_host(std::string host) override;
-        void do_set_service(std::string service) override;
 
         udp::socket socket_;
         udp::resolver resolver_;
@@ -52,7 +51,6 @@ namespace mtls_mproxy
         udp::endpoint sender_ep_;
 
         std::array<std::uint8_t, max_buffer_size> read_buffer_;
-        //std::array<std::uint8_t, max_buffer_size> write_buffer_;
 
         std::queue<Packet> write_queue_;
         std::queue<Packet> dns_queue_;

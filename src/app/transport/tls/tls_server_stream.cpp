@@ -45,13 +45,13 @@ namespace mtls_mproxy
 
     net::any_io_executor TlsServerStream::executor() { return socket_.get_executor(); }
 
-    void TlsServerStream::do_start()
+    void TlsServerStream::start()
     {
         logger_.debug(std::format("[{}] incoming connection from client: [{}]", id(), ep_to_str(socket_)));
         do_handshake();
     }
 
-    void TlsServerStream::do_stop()
+    void TlsServerStream::stop()
     {
         if (!socket_.lowest_layer().is_open())
             return;
@@ -78,40 +78,41 @@ namespace mtls_mproxy
             net::ssl::stream_base::server,
             [this, self{shared_from_this()}](const net::error_code& ec) {
                 if (!ec) {
-                    manager()->on_server_ready(shared_from_this());
+                    manager()->on_server_ready(self);
                 } else {
+                    logger_.warn(std::format("[{}] mtls auth error [{}]", id(), ep_to_str(socket_)));
                     handle_error(ec);
                 }
             });
     }
 
-    void TlsServerStream::do_write(IoBuffer event)
+    void TlsServerStream::write(IoBuffer event)
     {
         std::ranges::copy(event, write_buffer_.begin());
         net::async_write(
             socket_, net::buffer(write_buffer_, event.size()),
                 [this, self{shared_from_this()}](const net::error_code& ec, size_t) {
                 if (!ec) {
-                    manager()->on_write(shared_from_this());
+                    manager()->on_write(self);
                 } else {
                     handle_error(ec);
                 }
             });
     }
 
-    std::vector<std::uint8_t> TlsServerStream::do_udp_associate()
+    std::vector<std::uint8_t> TlsServerStream::udp_associate()
     {
         return {};
     }
 
-    void TlsServerStream::do_read()
+    void TlsServerStream::read()
     {
         socket_.async_read_some(
             net::buffer(read_buffer_),
             [this, self{shared_from_this()}](const net::error_code& ec, const size_t length) {
                 if (!ec) {
                     IoBuffer event(read_buffer_.data(), read_buffer_.data() + length);
-                    manager()->on_read(std::move(event), shared_from_this());
+                    manager()->on_read(std::move(event), self);
                 } else {
                     if (ec == net::error::eof || ec == net::ssl::error::stream_truncated) {
                         socket_.lowest_layer().close();

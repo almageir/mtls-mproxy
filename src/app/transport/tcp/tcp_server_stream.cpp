@@ -65,7 +65,7 @@ namespace mtls_mproxy
 
     net::any_io_executor TcpServerStream::executor() { return socket_.get_executor(); }
 
-    void TcpServerStream::do_start()
+    void TcpServerStream::start()
     {
         logger_.debug(std::format("[{}] incoming connection from client: [{}]", id(), ep_to_str(socket_)));
         net::post(executor_, [self{shared_from_this()}]() {
@@ -73,7 +73,7 @@ namespace mtls_mproxy
         });
     }
 
-    void TcpServerStream::do_stop()
+    void TcpServerStream::stop()
     {
         net::error_code ignored_ec;
         socket_.shutdown(tcp::socket::shutdown_both, ignored_ec);
@@ -81,7 +81,7 @@ namespace mtls_mproxy
             udp_socket_.value().close();
     }
 
-    void TcpServerStream::do_write(IoBuffer event)
+    void TcpServerStream::write(IoBuffer event)
     {
         if (!use_udp_) {
             write_tcp(std::move(event));
@@ -92,7 +92,7 @@ namespace mtls_mproxy
             // A read request via TCP is needed in order to receive notification of the completion of
             // a connection with a client in SOCKS5 UDP_ASSOCIATE mode
             if (use_udp_)
-                do_read();
+                read();
         } else {
             IoBuffer packet{};
 
@@ -112,14 +112,14 @@ namespace mtls_mproxy
         }
     }
 
-    std::vector<std::uint8_t> TcpServerStream::do_udp_associate()
+    std::vector<std::uint8_t> TcpServerStream::udp_associate()
     {
         udp::endpoint udp_bind_request_ep{socket_.local_endpoint().address(), 0};
         udp_socket_ = udp::socket(socket_.get_executor(), udp_bind_request_ep);
         return aux::endpoint_to_bytes(udp_socket_->local_endpoint());
     }
 
-    void TcpServerStream::do_read()
+    void TcpServerStream::read()
     {
         if (!is_udp_enabled()) {
             read_tcp();

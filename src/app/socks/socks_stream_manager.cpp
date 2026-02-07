@@ -11,11 +11,6 @@ namespace mtls_mproxy
     {
     }
 
-    void SocksStreamManager::stop(stream_ptr stream)
-    {
-        stop(stream->id());
-    }
-
     void SocksStreamManager::stop(int id)
     {
         if (const auto it = sessions_.find(id); it != sessions_.end()) {
@@ -36,11 +31,6 @@ namespace mtls_mproxy
                             sessions_.size()));
             sessions_.erase(it);
         }
-    }
-
-    void SocksStreamManager::on_close(stream_ptr stream)
-    {
-        stop(stream);
     }
 
     void SocksStreamManager::on_error(net::error_code ec, ServerStreamPtr stream)
@@ -64,9 +54,8 @@ namespace mtls_mproxy
 
         SocksSession session{id, shared_from_this(), logger_factory_};
         session.support_udp_associate_mode(is_udp_associate_mode_enabled_);
-        SocksPair pair{id, upstream, nullptr, std::move(session)};
+        SocksPair pair{id, std::move(upstream), nullptr, std::move(session)};
         sessions_.insert({id, std::move(pair)});
-        //on_server_ready(upstream);
     }
 
     void SocksStreamManager::on_read(IoBuffer buffer, ServerStreamPtr stream)
@@ -142,7 +131,7 @@ namespace mtls_mproxy
                 } else {
                     it->second.client = TcpClientStream::create(shared_from_this(),
                                                                 id,
-                                                              it->second.server->executor(),
+                                                                it->second.server->executor(),
                                                                 logger_factory_);
                 }
             }

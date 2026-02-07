@@ -7,14 +7,11 @@
 namespace mtls_mproxy
 {
     class StreamManager
-        : public std::enable_shared_from_this<StreamManager>
     {
     public:
         virtual ~StreamManager() = default;
         // Common interface
-        virtual void stop(stream_ptr ptr) = 0;
         virtual void stop(int id) = 0;
-        virtual void on_close(stream_ptr stream) = 0;
 
         // Passive session interface
         virtual void on_accept(ServerStreamPtr ptr) = 0;

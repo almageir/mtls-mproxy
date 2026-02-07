@@ -17,7 +17,9 @@ namespace mtls_mproxy
     using udp = asio::ip::tcp;
     using ssl_socket = net::ssl::stream<net::ip::tcp::socket>;
 
-    class TlsServerStream final : public ServerStream
+    class TlsServerStream final
+        : public ServerStream
+        , public std::enable_shared_from_this<TlsServerStream>
     {
     public:
         TlsServerStream(const StreamManagerPtr& ptr,
@@ -28,13 +30,14 @@ namespace mtls_mproxy
 
         net::any_io_executor executor() override;
 
+        void start() override;
+        void stop() override;
+        void read() override;
+        void write(IoBuffer event) override;
+        std::vector<std::uint8_t> udp_associate() override;
+
     private:
         void do_handshake();
-        void do_start() override;
-        void do_stop() override;
-        void do_read() override;
-        void do_write(IoBuffer event) override;
-        std::vector<std::uint8_t> do_udp_associate() override;
 
         void handle_error(const net::error_code& ec);
 

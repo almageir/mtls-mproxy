@@ -9,11 +9,6 @@ namespace mtls_mproxy
     {
     }
 
-    void HttpStreamManager::stop(stream_ptr stream)
-    {
-        stop(stream->id());
-    }
-
     void HttpStreamManager::stop(int id)
     {
         if (const auto it = sessions_.find(id); it != sessions_.end()) {
@@ -34,11 +29,6 @@ namespace mtls_mproxy
         }
     }
 
-    void HttpStreamManager::on_close(stream_ptr stream)
-    {
-        stop(stream);
-    }
-
     void HttpStreamManager::on_error(net::error_code ec, ServerStreamPtr stream)
     {
         if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
@@ -53,16 +43,14 @@ namespace mtls_mproxy
 
     void HttpStreamManager::on_accept(ServerStreamPtr upstream)
     {
+        upstream->start();
+
         const auto id{upstream->id()};
         logger_.debug(std::format("[{}] session created", id));
-
-        // auto downstream = TcpClientStream::create(shared_from_this(), id, upstream->executor(), logger_factory_);
 
         HttpSession session{id, shared_from_this(), logger_factory_};
         HttpPair pair{id, upstream, nullptr, std::move(session)};
         sessions_.insert({id, std::move(pair)});
-        upstream->start();
-        // on_server_ready(upstream);
     }
 
     void HttpStreamManager::on_read(IoBuffer buffer, ServerStreamPtr stream)

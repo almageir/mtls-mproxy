@@ -6,6 +6,7 @@
 
 namespace mtls_mproxy
 {
+    enum { max_buffer_size = 0x4000 };
     using IoBuffer = std::vector<std::uint8_t>;
 }
 
