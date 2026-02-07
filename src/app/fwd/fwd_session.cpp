@@ -27,14 +27,14 @@ namespace mtls_mproxy
         state_->handle_client_read(*this, event);
     }
 
-    void FwdSession::handle_server_write(IoBuffer& event)
+    void FwdSession::handle_server_write()
     {
-        state_->handle_server_write(*this, event);
+        state_->handle_server_write(*this);
     }
 
-    void FwdSession::handle_client_write(IoBuffer& event)
+    void FwdSession::handle_client_write()
     {
-        state_->handle_client_write(*this, event);
+        state_->handle_client_write(*this);
     }
 
     void FwdSession::handle_client_connect(IoBuffer& event)

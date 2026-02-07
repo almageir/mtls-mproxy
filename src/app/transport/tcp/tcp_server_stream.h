@@ -19,15 +19,21 @@ namespace mtls_mproxy
     class TcpServerStream final : public ServerStream
     {
     public:
-        TcpServerStream(const StreamManagerPtr& ptr,
-                          int id,
-                          tcp::socket&& socket,
-                          const asynclog::LoggerFactory& log_factory);
-        ~TcpServerStream() override;
+
+        static std::shared_ptr<TcpServerStream> create(const StreamManagerPtr& ptr,
+                                                       int id,
+                                                       tcp::socket&& socket,
+                                                       const asynclog::LoggerFactory& log_factory);
+            ~TcpServerStream() override;
 
         net::any_io_executor executor() override;
 
     private:
+        TcpServerStream(const StreamManagerPtr& ptr,
+                        int id,
+                        tcp::socket&& socket,
+                        const asynclog::LoggerFactory& log_factory);
+
         void do_start() override;
         void do_stop() override;
         void do_read() override;
@@ -44,6 +50,7 @@ namespace mtls_mproxy
         void read_tcp();
 
         tcp::socket socket_;
+        net::any_io_executor executor_;
         std::optional<udp::socket> udp_socket_ = std::nullopt;
         asynclog::ScopedLogger logger_;
 

@@ -6,7 +6,6 @@
 #include <asio/error_code.hpp>
 
 #include <memory>
-#include <format>
 
 namespace mtls_mproxy
 {
@@ -22,8 +21,8 @@ namespace mtls_mproxy
         virtual void handle_client_read(FwdSession& session, IoBuffer event);
         virtual void handle_on_accept(FwdSession& session);
         virtual void handle_client_connect(FwdSession& session, IoBuffer event);
-        virtual void handle_server_write(FwdSession& session, IoBuffer event);
-        virtual void handle_client_write(FwdSession& session, IoBuffer event);
+        virtual void handle_server_write(FwdSession& session);
+        virtual void handle_client_write(FwdSession& session);
         virtual void handle_server_error(FwdSession& session, net::error_code ec);
         virtual void handle_client_error(FwdSession& session, net::error_code ec);
     };
@@ -48,9 +47,9 @@ namespace mtls_mproxy
     public:
         static auto instance() { return std::make_unique<FwdDataTransferMode>(); }
         void handle_server_read(FwdSession& session, IoBuffer event) override;
-        void handle_server_write(FwdSession& session, IoBuffer event) override;
+        void handle_server_write(FwdSession& session) override;
         void handle_client_read(FwdSession& session, IoBuffer event) override;
-        void handle_client_write(FwdSession& session, IoBuffer event) override;
+        void handle_client_write(FwdSession& session) override;
     };
 }
 

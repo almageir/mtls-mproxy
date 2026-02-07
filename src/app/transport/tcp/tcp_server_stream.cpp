@@ -1,4 +1,7 @@
 #include "tcp_server_stream.h"
+
+#include <iostream>
+
 #include "transport/stream_manager.h"
 #include "auxiliary/helpers.h"
 
@@ -21,7 +24,7 @@ namespace
             return "socket not opened";
 
         net::error_code ec;
-        const auto& rep = sock.remote_endpoint(ec);
+        const auto rep = sock.remote_endpoint(ec);
 
         if (ec)
             return std::string{"remote_endpoint failed: " + ec.message()};
@@ -38,11 +41,21 @@ namespace mtls_mproxy
                                      const asynclog::LoggerFactory& log_factory)
         : ServerStream{ptr, id}
         , socket_{std::move(socket)}
+        , executor_{socket_.get_executor()}
         , logger_{log_factory.create("tcp_server_stream")}
         , read_buffer_{}
         , write_buffer_{}
         , udp_read_buffer_{}
     {
+    }
+
+    std::shared_ptr<TcpServerStream> TcpServerStream::create(const StreamManagerPtr& ptr,
+                                                             int id,
+                                                             tcp::socket&& socket,
+                                                             const asynclog::LoggerFactory& log_factory)
+    {
+        return std::shared_ptr<TcpServerStream>(
+            new TcpServerStream(ptr, id, std::move(socket), log_factory));
     }
 
     TcpServerStream::~TcpServerStream()
@@ -55,8 +68,8 @@ namespace mtls_mproxy
     void TcpServerStream::do_start()
     {
         logger_.debug(std::format("[{}] incoming connection from client: [{}]", id(), ep_to_str(socket_)));
-        net::post(socket_.get_executor(), [this, self{shared_from_this()}]() {
-            manager()->on_server_ready(shared_from_this());
+        net::post(executor_, [self{shared_from_this()}]() {
+            self->manager()->on_server_ready(self);
         });
     }
 
@@ -142,7 +155,7 @@ namespace mtls_mproxy
                     if (!ec) {
                         udp_write_queue_.pop();
                         udp_write_in_progress_ = false;
-                        manager()->on_write(std::move(IoBuffer{}), shared_from_this());
+                        manager()->on_write(self);
                         if (!udp_write_queue_.empty())
                             write_udp();
                     }
@@ -165,7 +178,7 @@ namespace mtls_mproxy
             [this, self{shared_from_this()}](const net::error_code& ec, size_t) {
                 if (!ec) {
                     wip_ = false;
-                    manager()->on_write(std::move(IoBuffer{}), shared_from_this());
+                    manager()->on_write(self);
                 } else
                     handle_error(ec);
             });
@@ -180,7 +193,7 @@ namespace mtls_mproxy
                 if (!ec) {
                     uint8_t* data = udp_read_buffer_.data();
                     IoBuffer event(udp_read_buffer_.data(), udp_read_buffer_.data() + length);
-                    manager()->on_read(std::move(event), shared_from_this());
+                    manager()->on_read(std::move(event), self);
                 }
                 else {
                     handle_error(ec);
@@ -202,7 +215,7 @@ namespace mtls_mproxy
                 if (!ec) {
                     rip_ = false;
                     IoBuffer event(read_buffer_.data(), read_buffer_.data() + length);
-                    manager()->on_read(std::move(event), shared_from_this());
+                    manager()->on_read(std::move(event), self);
                 }
                 else {
                     handle_error(ec);

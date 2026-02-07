@@ -2,6 +2,8 @@
 #include "fwd_session.h"
 #include "transport/stream_manager.h"
 
+#include <format>
+
 namespace
 {
     namespace net = asio;
@@ -34,8 +36,8 @@ namespace mtls_mproxy
     void FwdState::handle_client_read(FwdSession& session, IoBuffer buffer) {}
     void FwdState::handle_on_accept(FwdSession& session) {}
     void FwdState::handle_client_connect(FwdSession& session, IoBuffer buffer) {}
-    void FwdState::handle_server_write(FwdSession& session, IoBuffer buffer) {}
-    void FwdState::handle_client_write(FwdSession& session, IoBuffer buffer) {}
+    void FwdState::handle_server_write(FwdSession& session) {}
+    void FwdState::handle_client_write(FwdSession& session) {}
 
     void FwdState::handle_server_error(FwdSession& session, net::error_code ec)
     {
@@ -57,7 +59,7 @@ namespace mtls_mproxy
     {
         const auto sid = session.id();
         session.logger().info(std::format("[{}] requested [{}:{}]", sid, session.host(), session.service()));
-        session.connect(); // Это должно быть после первого чтения данных от локальной машины
+        session.connect(); // пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         session.change_state(FwdConnectionEstablished::instance());
     }
 
@@ -75,7 +77,7 @@ namespace mtls_mproxy
         session.change_state(FwdDataTransferMode::instance());
     }
 
-    void FwdDataTransferMode::handle_server_write(FwdSession& session, IoBuffer buffer)
+    void FwdDataTransferMode::handle_server_write(FwdSession& session)
     {
         session.read_from_client();
     }
@@ -86,7 +88,7 @@ namespace mtls_mproxy
         session.write_to_client(std::move(buffer));
     }
 
-    void FwdDataTransferMode::handle_client_write(FwdSession& session, IoBuffer buffer)
+    void FwdDataTransferMode::handle_client_write(FwdSession& session)
     {
         session.read_from_server();
     }

@@ -49,7 +49,7 @@ bool Socks::get_remote_address_info(const std::uint8_t *buffer, std::size_t leng
         return false;
 
     if (length >= proto::request_header_min_length) {
-        auto req = reinterpret_cast<const RequestHeader*>(buffer);
+        const auto req = reinterpret_cast<const RequestHeader*>(buffer);
 
         net::error_code ec;
         char host_buffer[proto::max_dom_length] = {0};

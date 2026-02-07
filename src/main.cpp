@@ -120,7 +120,8 @@ int main(int argc, char* argv[])
 
     namespace asl = asynclog;
     const auto log_backend = std::make_shared<asl::LogManager>();
-    log_backend->open(asl::LogMode::Console | asl::LogMode::File, conf.log_file_path);
+    // log_backend->open(asl::LogMode::Console | asl::LogMode::File, conf.log_file_path);
+    log_backend->open(asl::LogMode::Console);
 
     asl::LoggerFactory log_factory(log_backend);
     const auto logger = log_factory.create("Application");

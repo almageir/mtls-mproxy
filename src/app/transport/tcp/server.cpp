@@ -66,7 +66,7 @@ namespace mtls_mproxy
                 }
 
                 if (!ec) {
-                    auto new_stream = std::make_shared<TcpServerStream>(
+                    auto new_stream = TcpServerStream::create(
                         stream_manager_,
                         ++stream_id_,
                         std::move(socket),

@@ -6,13 +6,15 @@
 
 #include <asynclog/logger_factory.h>
 
+#include <string>
+
 namespace mtls_mproxy
 {
     class FwdStreamManager final
         : public StreamManager
     {
     public:
-        explicit FwdStreamManager(asynclog::LoggerFactory log_factory, std::string host, std::string port);
+        explicit FwdStreamManager(const asynclog::LoggerFactory& log_factory, std::string host, std::string port);
         ~FwdStreamManager() override = default;
 
         FwdStreamManager(const FwdStreamManager& other) = delete;
@@ -24,7 +26,7 @@ namespace mtls_mproxy
 
         void on_accept(ServerStreamPtr stream) override;
         void on_read(IoBuffer event, ServerStreamPtr stream) override;
-        void on_write(IoBuffer event, ServerStreamPtr stream) override;
+        void on_write(ServerStreamPtr stream) override;
         void on_error(net::error_code ec, ServerStreamPtr stream) override;
         void read_server(int id) override;
         void write_server(int id, IoBuffer event) override;
@@ -32,7 +34,7 @@ namespace mtls_mproxy
 
         void on_connect(IoBuffer event, ClientStreamPtr stream) override;
         void on_read(IoBuffer event, ClientStreamPtr stream) override;
-        void on_write(IoBuffer event, ClientStreamPtr stream) override;
+        void on_write(ClientStreamPtr stream) override;
         void on_error(net::error_code ec, ClientStreamPtr stream) override;
         void read_client(int id) override;
         void write_client(int id, IoBuffer event) override;

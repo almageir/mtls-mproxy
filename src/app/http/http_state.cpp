@@ -4,6 +4,8 @@
 
 #include <asio/error.hpp>
 
+#include <format>
+
 namespace
 {
     namespace net = asio;
@@ -45,8 +47,8 @@ namespace mtls_mproxy
     void HttpState::handle_client_read(HttpSession& session, IoBuffer buffer) {}
     void HttpState::handle_on_accept(HttpSession& session) {}
     void HttpState::handle_client_connect(HttpSession& session, IoBuffer buffer) {}
-    void HttpState::handle_server_write(HttpSession& session, IoBuffer buffer) {}
-    void HttpState::handle_client_write(HttpSession& session, IoBuffer buffer) {}
+    void HttpState::handle_server_write(HttpSession& session) {}
+    void HttpState::handle_client_write(HttpSession& session) {}
 
     void HttpState::handle_server_error(HttpSession& session, net::error_code ec)
     {
@@ -80,20 +82,20 @@ namespace mtls_mproxy
 
         if (host.empty()) {
             session.logger().warn(std::format("[{}] http protocol: bad request packet", sid));
-            session.write_to_server(IoBuffer{kHttpError500.begin(), kHttpError500.end()});
+            session.write_to_server(IoBuffer(kHttpError500.begin(), kHttpError500.end()));
             session.stop();
             return;
         }
 
         if (service.empty()) {
             session.logger().warn(std::format("[{}] http protocol: bad remote address format", sid));
-            session.write_to_server(IoBuffer{kHttpError500.begin(), kHttpError500.end()});
+            session.write_to_server(IoBuffer(kHttpError500.begin(), kHttpError500.end()));
             session.stop();
             return;
         }
 
         if (http_req.method == http::kConnect)
-            session.set_response(IoBuffer{kHttpDone.begin(), kHttpDone.end()});
+            session.set_response(IoBuffer(kHttpDone.begin(), kHttpDone.end()));
         else
             session.set_response(std::move(buffer));
 
@@ -115,14 +117,14 @@ namespace mtls_mproxy
         session.change_state(HttpReadyTransferData::instance());
     }
 
-    void HttpReadyTransferData::handle_client_write(HttpSession& session, IoBuffer buffer)
+    void HttpReadyTransferData::handle_client_write(HttpSession& session)
     {
         session.read_from_server();
         session.read_from_client();
         session.change_state(HttpDataTransferMode::instance());
     }
 
-    void HttpReadyTransferData::handle_server_write(HttpSession& session, IoBuffer buffer)
+    void HttpReadyTransferData::handle_server_write(HttpSession& session)
     {
         session.read_from_server();
         session.read_from_client();
@@ -130,7 +132,7 @@ namespace mtls_mproxy
     }
 
 
-    void HttpDataTransferMode::handle_server_write(HttpSession& session, IoBuffer buffer)
+    void HttpDataTransferMode::handle_server_write(HttpSession& session)
     {
         session.read_from_client();
     }
@@ -141,7 +143,7 @@ namespace mtls_mproxy
         session.write_to_client(std::move(buffer));
     }
 
-    void HttpDataTransferMode::handle_client_write(HttpSession& session, IoBuffer buffer)
+    void HttpDataTransferMode::handle_client_write(HttpSession& session)
     {
         session.read_from_server();
     }

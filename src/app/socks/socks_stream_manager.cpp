@@ -4,7 +4,7 @@
 
 namespace mtls_mproxy
 {
-    SocksStreamManager::SocksStreamManager(asynclog::LoggerFactory log_factory, bool udp_enabled)
+    SocksStreamManager::SocksStreamManager(const asynclog::LoggerFactory& log_factory, bool udp_enabled)
         : logger_factory_{log_factory}
         , logger_{logger_factory_.create("socks5_session_manager")}
         , is_udp_associate_mode_enabled_{udp_enabled}
@@ -18,7 +18,7 @@ namespace mtls_mproxy
 
     void SocksStreamManager::stop(int id)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end()) {
+        if (const auto it = sessions_.find(id); it != sessions_.end()) {
             if (it->second.client)
                 it->second.client->stop();
             if (it->second.server)
@@ -45,13 +45,13 @@ namespace mtls_mproxy
 
     void SocksStreamManager::on_error(net::error_code ec, ServerStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_server_error(ec);
     }
 
     void SocksStreamManager::on_error(net::error_code ec, ClientStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_error(ec);
     }
 
@@ -71,68 +71,68 @@ namespace mtls_mproxy
 
     void SocksStreamManager::on_read(IoBuffer buffer, ServerStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
-            it->second.session.handle_server_read(buffer);
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
+            it->second.session.handle_server_read(std::move(buffer));
     }
 
-    void SocksStreamManager::on_write(IoBuffer buffer, ServerStreamPtr stream)
+    void SocksStreamManager::on_write(ServerStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
-            it->second.session.handle_server_write(buffer);
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
+            it->second.session.handle_server_write();
     }
 
     void SocksStreamManager::read_server(int id)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end())
+        if (const auto it = sessions_.find(id); it != sessions_.end())
             it->second.server->read();
     }
 
     void SocksStreamManager::write_server(int id, IoBuffer buffer)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end())
+        if (const auto it = sessions_.find(id); it != sessions_.end())
             it->second.server->write(std::move(buffer));
     }
 
     void SocksStreamManager::on_server_ready(ServerStreamPtr stream)
     {
         const auto sid = stream->id();
-        if (auto it = sessions_.find(sid); it != sessions_.end())
+        if (const auto it = sessions_.find(sid); it != sessions_.end())
             it->second.session.handle_on_accept();
     }
 
     void SocksStreamManager::on_read(IoBuffer buffer, ClientStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_read(buffer);
     }
 
-    void SocksStreamManager::on_write(IoBuffer buffer, ClientStreamPtr stream)
+    void SocksStreamManager::on_write(ClientStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
-            it->second.session.handle_client_write(buffer);
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
+            it->second.session.handle_client_write();
     }
 
     void SocksStreamManager::on_connect(IoBuffer buffer, ClientStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_connect(buffer);
     }
 
     void SocksStreamManager::read_client(int id)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end())
+        if (const auto it = sessions_.find(id); it != sessions_.end())
             it->second.client->read();
     }
 
     void SocksStreamManager::write_client(int id, IoBuffer buffer)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end())
+        if (const auto it = sessions_.find(id); it != sessions_.end())
             it->second.client->write(std::move(buffer));
     }
 
     void SocksStreamManager::connect(int id, std::string host, std::string service)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end()) {
+        if (const auto it = sessions_.find(id); it != sessions_.end()) {
             if (!it->second.client) {
                 if (it->second.session.is_udp_mode_enabled()) {
                     it->second.client = std::make_shared<UdpClientStream>(shared_from_this(),
@@ -140,10 +140,10 @@ namespace mtls_mproxy
                                                                           it->second.server->executor(),
                                                                           logger_factory_);
                 } else {
-                    it->second.client = std::make_shared<TcpClientStream>(shared_from_this(),
-                                                                          id,
-                                                                          it->second.server->executor(),
-                                                                          logger_factory_);
+                    it->second.client = TcpClientStream::create(shared_from_this(),
+                                                                id,
+                                                              it->second.server->executor(),
+                                                                logger_factory_);
                 }
             }
             it->second.client->set_host(std::move(host));
@@ -154,7 +154,7 @@ namespace mtls_mproxy
 
     std::vector<std::uint8_t> SocksStreamManager::udp_associate(int id)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end())
+        if (const auto it = sessions_.find(id); it != sessions_.end())
             return it->second.server->udp_associate();
 
         return {};

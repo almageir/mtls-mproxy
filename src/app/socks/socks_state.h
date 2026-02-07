@@ -22,8 +22,8 @@ namespace mtls_mproxy
         virtual void handle_client_read(SocksSession& session, IoBuffer event);
         virtual void handle_on_accept(SocksSession& session);
         virtual void handle_client_connect(SocksSession& session, IoBuffer event);
-        virtual void handle_server_write(SocksSession& session, IoBuffer event);
-        virtual void handle_client_write(SocksSession& session, IoBuffer event);
+        virtual void handle_server_write(SocksSession& session);
+        virtual void handle_client_write(SocksSession& session);
         virtual void handle_server_error(SocksSession& session, net::error_code ec);
         virtual void handle_client_error(SocksSession& session, net::error_code ec);
     };
@@ -48,7 +48,7 @@ namespace mtls_mproxy
     public:
         static auto instance() { return std::make_unique<SocksConnectionRequest>(); }
         void handle_server_read(SocksSession& session, IoBuffer event) override;
-        void handle_server_write(SocksSession& session, IoBuffer event) override;
+        void handle_server_write(SocksSession& session) override;
     };
 
     class SocksConnectionEstablished final : public SocksState
@@ -57,21 +57,21 @@ namespace mtls_mproxy
         static auto instance() { return std::make_unique<SocksConnectionEstablished>(); }
         void handle_client_connect(SocksSession& session, IoBuffer event) override;
         void handle_client_error(SocksSession& session, net::error_code ec) override;
-        void handle_server_write(SocksSession& session, IoBuffer event) override;
+        void handle_server_write(SocksSession& session) override;
     };
 
     class SocksReadyTransferData final : public SocksState
     {
     public:
         static auto instance() { return std::make_unique<SocksReadyTransferData>(); }
-        void handle_server_write(SocksSession& session, IoBuffer event) override;
+        void handle_server_write(SocksSession& session) override;
     };
 
     class SocksReadyUdpTransferData final : public SocksState
     {
     public:
         static auto instance() { return std::make_unique<SocksReadyUdpTransferData>(); }
-        void handle_server_write(SocksSession& session, IoBuffer event) override;
+        void handle_server_write(SocksSession& session) override;
     };
 
     class SocksDataTransferMode final : public SocksState
@@ -79,9 +79,9 @@ namespace mtls_mproxy
     public:
         static auto instance() { return std::make_unique<SocksDataTransferMode>(); }
         void handle_server_read(SocksSession& session, IoBuffer event) override;
-        void handle_server_write(SocksSession& session, IoBuffer event) override;
+        void handle_server_write(SocksSession& session) override;
         void handle_client_read(SocksSession& session, IoBuffer event) override;
-        void handle_client_write(SocksSession& session, IoBuffer event) override;
+        void handle_client_write(SocksSession& session) override;
     };
 
     class SocksDataUdpTransferMode final : public SocksState
@@ -89,9 +89,9 @@ namespace mtls_mproxy
     public:
         static auto instance() { return std::make_unique<SocksDataUdpTransferMode>(); }
         void handle_server_read(SocksSession& session, IoBuffer event) override;
-        void handle_server_write(SocksSession& session, IoBuffer event) override;
+        void handle_server_write(SocksSession& session) override;
         void handle_client_read(SocksSession& session, IoBuffer event) override;
-        void handle_client_write(SocksSession& session, IoBuffer event) override;
+        void handle_client_write(SocksSession& session) override;
     };
 }
 #endif // MTLS_MPROXY_SOCKS_STATE_H

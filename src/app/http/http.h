@@ -20,10 +20,10 @@ namespace http
     {
         request_method method{kNone};
 
-        std::string_view uri;
-        std::string_view version;
-        std::string_view host;
-        std::string_view connection;
+        std::string uri;
+        std::string version;
+        std::string host;
+        std::string connection;
 
         std::string get_host() const;
         std::string get_service() const;

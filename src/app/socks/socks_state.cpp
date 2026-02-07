@@ -61,8 +61,8 @@ namespace mtls_mproxy
     void SocksState::handle_client_read(SocksSession& session, IoBuffer buffer) {}
     void SocksState::handle_on_accept(SocksSession& session) {}
     void SocksState::handle_client_connect(SocksSession& session, IoBuffer buffer) {}
-    void SocksState::handle_server_write(SocksSession& session, IoBuffer buffer) {}
-    void SocksState::handle_client_write(SocksSession& session, IoBuffer buffer) {}
+    void SocksState::handle_server_write(SocksSession& session) {}
+    void SocksState::handle_client_write(SocksSession& session) {}
 
     void SocksState::handle_server_error(SocksSession& session, net::error_code ec)
     {
@@ -98,7 +98,7 @@ namespace mtls_mproxy
         session.change_state(SocksConnectionRequest::instance());
     }
 
-    void SocksConnectionRequest::handle_server_write(SocksSession& session, IoBuffer buffer) {
+    void SocksConnectionRequest::handle_server_write(SocksSession& session) {
         session.read_from_server();
     }
 
@@ -122,7 +122,10 @@ namespace mtls_mproxy
 
             session.set_endpoint_info(host, service);
 
-            session.logger().info(std::format("[{}] requested [{}:{}]", sid, host, service));
+            const std::string msg = std::format("[{}] requested [{}:{}]", sid, host, service);
+
+            session.logger().info(msg);
+            // session.logger().info(std::format("[{}] requested [{}:{}]", sid, host, service));
             session.set_response(std::move(buffer));
             session.connect();
             session.change_state(SocksConnectionEstablished::instance());
@@ -179,19 +182,19 @@ namespace mtls_mproxy
         session.logger().warn(std::format("[{}] client side session error: {}", session.id(), ec.message()));
     }
 
-    void SocksConnectionEstablished::handle_server_write(SocksSession& session, IoBuffer buffer)
+    void SocksConnectionEstablished::handle_server_write(SocksSession& session)
     {
         session.stop();
     }
 
     // TCP Transfer mode
-    void SocksReadyTransferData::handle_server_write(SocksSession& session, IoBuffer buffer) {
+    void SocksReadyTransferData::handle_server_write(SocksSession& session) {
         session.read_from_server();
         session.read_from_client();
         session.change_state(SocksDataTransferMode::instance());
     }
 
-    void SocksDataTransferMode::handle_server_write(SocksSession& session, IoBuffer buffer) {
+    void SocksDataTransferMode::handle_server_write(SocksSession& session) {
         session.read_from_client();
     }
 
@@ -200,7 +203,7 @@ namespace mtls_mproxy
         session.write_to_client(std::move(buffer));
     }
 
-    void SocksDataTransferMode::handle_client_write(SocksSession& session, IoBuffer buffer) {
+    void SocksDataTransferMode::handle_client_write(SocksSession& session) {
         session.read_from_server();
     }
 
@@ -210,7 +213,7 @@ namespace mtls_mproxy
     }
 
     // UDP Transfer mode
-    void SocksReadyUdpTransferData::handle_server_write(SocksSession& session, IoBuffer buffer)
+    void SocksReadyUdpTransferData::handle_server_write(SocksSession& session)
     {
         session.read_from_server();
         session.change_state(SocksDataUdpTransferMode::instance());
@@ -223,7 +226,7 @@ namespace mtls_mproxy
         session.read_from_server();
     }
 
-    void SocksDataUdpTransferMode::handle_server_write(SocksSession& session, IoBuffer buffer) {}
+    void SocksDataUdpTransferMode::handle_server_write(SocksSession& session) {}
 
     void SocksDataUdpTransferMode::handle_client_read(SocksSession& session, IoBuffer buffer)
     {
@@ -232,5 +235,5 @@ namespace mtls_mproxy
         session.read_from_client();
     }
 
-    void SocksDataUdpTransferMode::handle_client_write(SocksSession& session, IoBuffer buffer) {}
+    void SocksDataUdpTransferMode::handle_client_write(SocksSession& session) {}
 }

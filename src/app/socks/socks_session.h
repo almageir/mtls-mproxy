@@ -40,8 +40,8 @@ namespace mtls_mproxy
         void change_state(std::unique_ptr<SocksState> state);
         void handle_server_read(IoBuffer event);
         void handle_client_read(IoBuffer event);
-        void handle_server_write(IoBuffer event);
-        void handle_client_write(IoBuffer event);
+        void handle_server_write();
+        void handle_client_write();
         void handle_client_connect(IoBuffer event);
         void handle_on_accept();
         void handle_server_error(net::error_code ec);

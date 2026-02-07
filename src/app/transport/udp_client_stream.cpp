@@ -140,7 +140,7 @@ namespace mtls_mproxy
                 if (!ec) {
                     write_queue_.pop();
                     write_in_progress_ = false;
-                    manager()->on_write(std::move(IoBuffer{}), shared_from_this());
+                    manager()->on_write(shared_from_this());
                     if (!write_queue_.empty())
                         write_packet();
                 } else {

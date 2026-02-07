@@ -44,7 +44,15 @@ namespace mtls_mproxy
 
     TcpClientStream::~TcpClientStream()
     {
-        logger_.debug(std::format("[{}] tcp client stream closed ({}:{})", id(), host_, port_));
+         logger_.debug(std::format("[{}] tcp client stream closed ({}:{})", id(), host_, port_));
+    }
+
+    std::shared_ptr<TcpClientStream> TcpClientStream::create(const StreamManagerPtr &ptr,
+                                                             int id,
+                                                             net::any_io_executor ctx,
+                                                             const asynclog::LoggerFactory &log_factory)
+    {
+        return std::shared_ptr<TcpClientStream>(new TcpClientStream(ptr, id, std::move(ctx), log_factory));
     }
 
     void TcpClientStream::do_start()
@@ -76,7 +84,7 @@ namespace mtls_mproxy
                 logger_.info(std::format("[{}] connected to [{}] --> [{}]", id(), host_, ep_to_str(socket_, eRemote)));
                 logger_.debug(std::format("[{}] local address [{}]", id(), ep_to_str(socket_, eLocal)));
                 IoBuffer event{};
-                manager()->on_connect(std::move(event), shared_from_this());
+                manager()->on_connect(std::move(event), self);
             }
             else {
                 handle_error(ec);
@@ -91,13 +99,13 @@ namespace mtls_mproxy
             return;
         }
         wip_ = true;
-        std::copy(event.begin(), event.end(), write_buffer_.begin());
+        std::ranges::copy(event, write_buffer_.begin());
         net::async_write(
             socket_, net::buffer(write_buffer_, event.size()),
             [this, self{shared_from_this()}](const net::error_code& ec, std::size_t) {
             if (!ec) {
                 wip_ = false;
-                manager()->on_write(std::move(IoBuffer{}), shared_from_this());
+                manager()->on_write(self);
             }
             else {
                 handle_error(ec);
@@ -113,12 +121,12 @@ namespace mtls_mproxy
         }
         rip_ = true;
         socket_.async_read_some(
-            net::buffer(read_buffer_),
+            net::buffer(read_buffer_.data(), read_buffer_.size()),
             [this, self{shared_from_this()}](const net::error_code& ec, const std::size_t length) {
             if (!ec && length) {
                 rip_ = false;
                 IoBuffer event{read_buffer_.data(), read_buffer_.data() + length};
-                manager()->on_read(std::move(event), shared_from_this());
+                manager()->on_read(std::move(event), self);
             }
             else {
                 handle_error(ec);

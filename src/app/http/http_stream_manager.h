@@ -12,7 +12,7 @@ namespace mtls_mproxy
         : public StreamManager
     {
     public:
-        explicit HttpStreamManager(asynclog::LoggerFactory log_factory);
+        explicit HttpStreamManager(const asynclog::LoggerFactory& log_factory);
         ~HttpStreamManager() override = default;
 
         HttpStreamManager(const HttpStreamManager& other) = delete;
@@ -24,7 +24,7 @@ namespace mtls_mproxy
 
         void on_accept(ServerStreamPtr stream) override;
         void on_read(IoBuffer event, ServerStreamPtr stream) override;
-        void on_write(IoBuffer event, ServerStreamPtr stream) override;
+        void on_write(ServerStreamPtr stream) override;
         void on_error(net::error_code ec, ServerStreamPtr stream) override;
         void read_server(int id) override;
         void write_server(int id, IoBuffer event) override;
@@ -32,7 +32,7 @@ namespace mtls_mproxy
 
         void on_connect(IoBuffer event, ClientStreamPtr stream) override;
         void on_read(IoBuffer event, ClientStreamPtr stream) override;
-        void on_write(IoBuffer event, ClientStreamPtr stream) override;
+        void on_write(ClientStreamPtr stream) override;
         void on_error(net::error_code ec, ClientStreamPtr stream) override;
         void read_client(int id) override;
         void write_client(int id, IoBuffer event) override;

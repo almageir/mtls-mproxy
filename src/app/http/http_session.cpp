@@ -5,7 +5,7 @@
 
 namespace mtls_mproxy
 {
-    HttpSession::HttpSession(int id, StreamManagerPtr mgr, asynclog::LoggerFactory logger_factory)
+    HttpSession::HttpSession(int id, StreamManagerPtr mgr, const asynclog::LoggerFactory& logger_factory)
         : context_{id}, manager_{std::move(mgr)}
         , logger_{logger_factory.create("http_session")}
     {
@@ -27,14 +27,14 @@ namespace mtls_mproxy
         state_->handle_client_read(*this, event);
     }
 
-    void HttpSession::handle_server_write(IoBuffer& event)
+    void HttpSession::handle_server_write()
     {
-        state_->handle_server_write(*this, event);
+        state_->handle_server_write(*this);
     }
 
-    void HttpSession::handle_client_write(IoBuffer& event)
+    void HttpSession::handle_client_write()
     {
-        state_->handle_client_write(*this, event);
+        state_->handle_client_write(*this);
     }
 
     void HttpSession::handle_client_connect(IoBuffer& event)

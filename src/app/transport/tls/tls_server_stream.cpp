@@ -92,7 +92,7 @@ namespace mtls_mproxy
             socket_, net::buffer(write_buffer_, event.size()),
                 [this, self{shared_from_this()}](const net::error_code& ec, size_t) {
                 if (!ec) {
-                    manager()->on_write(std::move(IoBuffer{}), shared_from_this());
+                    manager()->on_write(shared_from_this());
                 } else {
                     handle_error(ec);
                 }

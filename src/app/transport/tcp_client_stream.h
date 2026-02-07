@@ -15,13 +15,20 @@ namespace mtls_mproxy
     class TcpClientStream final : public ClientStream
     {
     public:
+        ~TcpClientStream() override;
+
+        static std::shared_ptr<TcpClientStream> create(
+            const StreamManagerPtr& ptr,
+            int id,
+            net::any_io_executor ctx,
+            const asynclog::LoggerFactory& log_factory);
+
+    private:
         TcpClientStream(const StreamManagerPtr& ptr,
                         int id,
                         net::any_io_executor ctx,
                         const asynclog::LoggerFactory& log_factory);
-        ~TcpClientStream() override;
 
-    private:
         void do_start() override;
         void do_stop() override;
 

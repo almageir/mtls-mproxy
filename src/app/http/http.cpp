@@ -16,12 +16,12 @@ namespace
 
         while ((next_pos = str.find_first_of(delimeter, cur_pos)) != std::string_view::npos) {
             if ((next_pos - cur_pos) > 0)
-                items.emplace_back(std::string_view{str.data() + cur_pos, next_pos - cur_pos});
+                items.emplace_back(str.data() + cur_pos, next_pos - cur_pos);
             cur_pos = next_pos + 1;
         }
 
         if (cur_pos < str.size())
-            items.emplace_back(std::string_view{str.data() + cur_pos, str.size() - cur_pos});
+            items.emplace_back(str.data() + cur_pos, str.size() - cur_pos);
 
         return items;
     }
@@ -36,7 +36,7 @@ namespace
 
     bool get_request_fields(std::string_view header, http::request_headers& req)
     {
-        auto fields = split(header, " ");
+        const auto fields = split(header, " ");
         if (fields.size() != 3)
             return false;
 
@@ -58,7 +58,7 @@ namespace
             req.host = fields[1];
         } else {
             req.method = http::request_method::kNone;
-            return std::string_view::npos;
+            return false;
         }
 
         req.uri = fields[1];
@@ -75,7 +75,7 @@ namespace
         return {};
     }
 
-    bool get_remaining_required_fields(std::vector<std::string_view> http_headers, std::size_t start_idx, http::request_headers& req)
+    bool get_remaining_required_fields(const std::vector<std::string_view>& http_headers, std::size_t start_idx, http::request_headers& req)
     {
         for (auto idx = start_idx; idx < http_headers.size(); ++idx) {
             if (req.host.empty()) {
@@ -94,7 +94,7 @@ namespace http
 {
     std::string request_headers::get_service() const
     {
-        if (method != request_method::kConnect) {
+        if (method != kConnect) {
             const auto parts = split(uri, ":");
             if (parts.size() == 2)
                 return std::string{parts[0]};
@@ -110,7 +110,7 @@ namespace http
 
     std::string request_headers::get_host() const
     {
-        if (method != request_method::kConnect)
+        if (method != kConnect)
             return std::string{host};
 
         const auto parts = split(host, ":");

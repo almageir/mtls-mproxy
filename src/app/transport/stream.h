@@ -14,7 +14,7 @@ namespace mtls_mproxy
     {
     public:
         enum {
-            max_buffer_size = 0x4000
+            max_buffer_size = 0x1000
         };
 
         explicit Stream(StreamManagerPtr smp, int id = 0)
@@ -30,7 +30,6 @@ namespace mtls_mproxy
 
         [[nodiscard]] int id() const { return id_; }
 
-    protected:
         StreamManagerPtr manager() { return stream_manager_; }
 
     private:

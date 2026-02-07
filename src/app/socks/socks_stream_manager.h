@@ -12,7 +12,7 @@ namespace mtls_mproxy
         : public StreamManager
     {
     public:
-        explicit SocksStreamManager(asynclog::LoggerFactory log_factory, bool udp_enabled = false);
+        explicit SocksStreamManager(const asynclog::LoggerFactory& log_factory, bool udp_enabled = false);
         ~SocksStreamManager() override = default;
 
         SocksStreamManager(const SocksStreamManager& other) = delete;
@@ -24,7 +24,7 @@ namespace mtls_mproxy
 
         void on_accept(ServerStreamPtr stream) override;
         void on_read(IoBuffer buffer, ServerStreamPtr stream) override;
-        void on_write(IoBuffer buffer, ServerStreamPtr stream) override;
+        void on_write(ServerStreamPtr stream) override;
         void on_error(net::error_code ec, ServerStreamPtr stream) override;
         void read_server(int id) override;
         void write_server(int id, IoBuffer buffer) override;
@@ -32,7 +32,7 @@ namespace mtls_mproxy
 
         void on_connect(IoBuffer buffer, ClientStreamPtr stream) override;
         void on_read(IoBuffer buffer, ClientStreamPtr stream) override;
-        void on_write(IoBuffer buffer, ClientStreamPtr stream) override;
+        void on_write(ClientStreamPtr stream) override;
         void on_error(net::error_code ec, ClientStreamPtr stream) override;
         void read_client(int id) override;
         void write_client(int id, IoBuffer buffer) override;

@@ -6,6 +6,7 @@
 #include <asynclog/scoped_logger.h>
 
 #include <string>
+#include <string_view>
 
 namespace asynclog {
 	class LoggerFactory;
@@ -28,12 +29,12 @@ namespace mtls_mproxy
         };
 
     public:
-        HttpSession(int id, StreamManagerPtr manager, asynclog::LoggerFactory logger_factory);
+        HttpSession(int id, StreamManagerPtr manager, const asynclog::LoggerFactory& logger_factory);
         void change_state(std::unique_ptr<HttpState> state);
         void handle_server_read(IoBuffer& event);
         void handle_client_read(IoBuffer& event);
-        void handle_server_write(IoBuffer& event);
-        void handle_client_write(IoBuffer& event);
+        void handle_server_write();
+        void handle_client_write();
         void handle_client_connect(IoBuffer& event);
         void handle_on_accept();
         void handle_server_error(net::error_code ec);

@@ -3,7 +3,7 @@
 
 namespace mtls_mproxy
 {
-    FwdStreamManager::FwdStreamManager(asynclog::LoggerFactory log_factory, std::string host, std::string port)
+    FwdStreamManager::FwdStreamManager(const asynclog::LoggerFactory& log_factory, std::string host, std::string port)
         : logger_factory_{log_factory}
         , logger_{logger_factory_.create("tun_session_manager")}
         , host_{std::move(host)}
@@ -18,7 +18,7 @@ namespace mtls_mproxy
 
     void FwdStreamManager::stop(int id)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end()) {
+        if (const auto it = sessions_.find(id); it != sessions_.end()) {
             it->second.client->stop();
             it->second.server->stop();
 
@@ -43,13 +43,13 @@ namespace mtls_mproxy
 
     void FwdStreamManager::on_error(net::error_code ec, ServerStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_server_error(ec);
     }
 
     void FwdStreamManager::on_error(net::error_code ec, ClientStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_error(ec);
     }
 
@@ -68,33 +68,33 @@ namespace mtls_mproxy
 
     void FwdStreamManager::on_read(IoBuffer buffer, ServerStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_server_read(buffer);
     }
 
-    void FwdStreamManager::on_write(IoBuffer buffer, ServerStreamPtr stream)
+    void FwdStreamManager::on_write(ServerStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
-            it->second.session.handle_server_write(buffer);
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
+            it->second.session.handle_server_write();
     }
 
     void FwdStreamManager::read_server(int id)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end())
+        if (const auto it = sessions_.find(id); it != sessions_.end())
             it->second.server->read();
     }
 
     void FwdStreamManager::write_server(int id, IoBuffer buffer)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end())
+        if (const auto it = sessions_.find(id); it != sessions_.end())
             it->second.server->write(std::move(buffer));
     }
 
     void FwdStreamManager::on_server_ready(ServerStreamPtr stream)
     {
         const auto sid = stream->id();
-        if (auto it = sessions_.find(sid); it != sessions_.end()) {
-            auto downstream = std::make_shared<TcpClientStream>(shared_from_this(),
+        if (const auto it = sessions_.find(sid); it != sessions_.end()) {
+            auto downstream = TcpClientStream::create(shared_from_this(),
                                                                 sid,
                                                                 stream->executor(),
                                                                 logger_factory_);
@@ -105,37 +105,37 @@ namespace mtls_mproxy
 
     void FwdStreamManager::on_read(IoBuffer buffer, ClientStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_read(buffer);
     }
 
-    void FwdStreamManager::on_write(IoBuffer buffer, ClientStreamPtr stream)
+    void FwdStreamManager::on_write(ClientStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
-            it->second.session.handle_client_write(buffer);
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
+            it->second.session.handle_client_write();
     }
 
     void FwdStreamManager::on_connect(IoBuffer buffer, ClientStreamPtr stream)
     {
-        if (auto it = sessions_.find(stream->id()); it != sessions_.end())
+        if (const auto it = sessions_.find(stream->id()); it != sessions_.end())
             it->second.session.handle_client_connect(buffer);
     }
 
     void FwdStreamManager::read_client(int id)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end())
+        if (const auto it = sessions_.find(id); it != sessions_.end())
             it->second.client->read();
     }
 
     void FwdStreamManager::write_client(int id, IoBuffer buffer)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end())
+        if (const auto it = sessions_.find(id); it != sessions_.end())
             it->second.client->write(std::move(buffer));
     }
 
     void FwdStreamManager::connect(int id, std::string host, std::string service)
     {
-        if (auto it = sessions_.find(id); it != sessions_.end()) {
+        if (const auto it = sessions_.find(id); it != sessions_.end()) {
             it->second.client->set_host(std::move(host));
             it->second.client->set_service(std::move(service));
             it->second.client->start();

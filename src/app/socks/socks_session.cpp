@@ -26,14 +26,14 @@ namespace mtls_mproxy
         state_->handle_client_read(*this, std::move(event));
     }
 
-    void SocksSession::handle_server_write(IoBuffer event)
+    void SocksSession::handle_server_write()
     {
-        state_->handle_server_write(*this, std::move(event));
+        state_->handle_server_write(*this);
     }
 
-    void SocksSession::handle_client_write(IoBuffer event)
+    void SocksSession::handle_client_write()
     {
-        state_->handle_client_write(*this, std::move(event));
+        state_->handle_client_write(*this);
     }
 
     void SocksSession::handle_client_connect(IoBuffer event)
