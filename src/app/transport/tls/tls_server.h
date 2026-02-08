@@ -25,6 +25,7 @@ namespace mtls_mproxy
             std::string private_key;
             std::string server_cert;
             std::string ca_cert;
+            std::string version;
         };
 
         explicit TlsServer(const std::string& port,

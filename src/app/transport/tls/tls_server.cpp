@@ -10,7 +10,7 @@ namespace mtls_mproxy
                          const TlsOptions& settings,
                          StreamManagerPtr proxy_backend,
                          asynclog::LoggerFactory log_factory)
-        : ssl_ctx_{net::ssl::context::tlsv13_server}
+        : ssl_ctx_{net::ssl::context::tls_server}
         , signals_(ctx_)
         , acceptor_(ctx_)
         , stream_manager_{std::move(proxy_backend)}
@@ -21,11 +21,21 @@ namespace mtls_mproxy
         configure_signals();
         async_wait_signals();
 
-        ssl_ctx_.set_options(net::ssl::context::default_workarounds |
-                             net::ssl::context::no_tlsv1_1 |
-                             net::ssl::context::no_tlsv1_2);
+        auto options = net::ssl::context::default_workarounds |
+            net::ssl::context::no_sslv2 |
+            net::ssl::context::no_sslv3 |
+            net::ssl::context::no_tlsv1 |
+            net::ssl::context::no_tlsv1_1;
 
-        const auto rc = SSL_CTX_set_min_proto_version(ssl_ctx_.native_handle(), TLS1_3_VERSION);
+        if (settings.version == "1.3")
+            options |= net::ssl::context::no_tlsv1_2;
+
+        ssl_ctx_.set_options(options);
+
+        SSL_CTX_set_min_proto_version(ssl_ctx_.native_handle(),
+                                      settings.version == "1.3"
+                                      ? TLS1_3_VERSION
+                                      : TLS1_2_VERSION);
 
         ssl_ctx_.use_certificate_chain_file(settings.server_cert);
         SSL_CTX_set_client_CA_list(ssl_ctx_.native_handle(), SSL_load_client_CA_file(settings.ca_cert.c_str()));

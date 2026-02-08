@@ -14,7 +14,7 @@
 
 namespace
 {
-    struct server_conf
+    struct ServerConf
     {
         std::string listen_port;
         std::string mode;
@@ -32,12 +32,12 @@ namespace
         }
     };
 
-    std::optional<server_conf> parse_command_line_arguments(int argc, char* argv[])
+    std::optional<ServerConf> parse_command_line_arguments(int argc, char* argv[])
     {
         using cliap::Arg;
         using cliap::ArgParser;
 
-        server_conf srv_conf{};
+        ServerConf srv_conf{};
 
         ArgParser argParser;
 
@@ -52,7 +52,8 @@ namespace
             .add_parameter(Arg("s,server-cert").description("server certificate file path"))
             .add_parameter(Arg("c,ca-cert").description("CA certificate file path"))
             .add_parameter(Arg("n,target-host").description("tunnel target host"))
-            .add_parameter(Arg("o,target-port").description("tunnel target port"));
+            .add_parameter(Arg("o,target-port").description("tunnel target port"))
+            .add_parameter(Arg("V,tls-version").set_default("1.3").description("TLS min protocol version [1.2 or 1.3]"));
 
         const auto err_msg = argParser.parse(argc, argv);
         if (argParser.arg("h").is_parsed()) {
@@ -91,6 +92,7 @@ namespace
                 std::cerr << err_msg << "the <ca-cert> parameter must be specified" << std::endl;
                 return std::nullopt;
             }
+            srv_conf.tls_options.version = argParser.arg("V").get_value_as_str();
         }
 
         if (argParser.arg("m").get_value_as_str() == "tun") {
@@ -116,7 +118,7 @@ int main(int argc, char* argv[])
         std::cerr << "Program finished..." << std::endl;
         return 0;
     }
-    const server_conf& conf = serv_conf.value();
+    const ServerConf& conf = serv_conf.value();
 
     namespace asl = asynclog;
     const auto log_backend = std::make_shared<asl::LogManager>();
