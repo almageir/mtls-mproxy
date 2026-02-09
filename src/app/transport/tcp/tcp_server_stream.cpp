@@ -86,13 +86,14 @@ namespace mtls_mproxy
         if (!use_udp_) {
             write_tcp(std::move(event));
 
-            if (is_udp_enabled())
+            if (is_udp_enabled()) {
                 use_udp_ = true;
-
-            // A read request via TCP is needed in order to receive notification of the completion of
-            // a connection with a client in SOCKS5 UDP_ASSOCIATE mode
-            if (use_udp_)
+                // A read request via TCP is needed in order to receive notification of the completion of
+                // a connection with a client in SOCKS5 UDP_ASSOCIATE mode
+                read_tcp();
+                // And here the UDP reading chain will be launched
                 read();
+            }
         } else {
             IoBuffer packet{};
 
