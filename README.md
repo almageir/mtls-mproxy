@@ -31,10 +31,24 @@
 - TCP port forwarding
 - mTLS (Mutual TLS) authentication
 
+
+Работоспособность проверял в:
+- Windows 10/11
+- Debian 13
+- Ubuntu 24.04
+- Manjaro 26
+
+### Что планирую еще сделать
+
+1. Добавить поддержку мультиплексирования в mtls-mproxy и mtls-tun, чтоб можно было через один туннель пропускать все соединения.
+2. Реализовать пропуск через мультиплексированный туннель UDP пакетов для Socks 5 UPD ASSOCIATE режима (да это не эффективно, но лучше, чем ничего).
+3. Добавить опции для управления уровнем логирования.
+4. Реализовать команды для изменения на лету TargetHost и TargetPort для режима проброса портов через туннель.
+
 ## Особенности
 
-Сам по себе mtls-mproxy представляет собой обычный прокси сервер. Но при использовании в паре с mtls-tun 
-применяется взаимная аутентификация mTLS на базе классического PKI.
+Сам по себе mtls-mproxy представляет собой обычный прокси сервер, но при использовании в паре с mtls-tun 
+применяется взаимная аутентификация mTLS на базе классического PKI. 
 
 Для аутентификации необходимы:
 - сертификат и приватный ключ на стороне клиента (mtls-tun)
@@ -44,10 +58,73 @@
 Установление зашифрованного TLS соединения между mtls-tun и mtls-mproxy возможно только после взаимной 
 проверки сертификатов между сервером и клиентом.
 
+## Ограничения
+
+На текущий момент:
+- поддерживается TLS версии 1.2 или 1.3
+- при работе через зашифрованный туннель UDP ASSOCIATE режим Socks 5 прокси работать не будет
+- текущая реализация логирует и в файл и в консоль
+- пока поддерживаются только соединения с IP версии 4
+
 ## Пример использования
 
-## Требования
-___
+### Запуск в режиме Socks5 прокси на удаленной VPS с доступом к нему через защищенный туннель (mlts-tun)
 
-* CMake
-* C++ 20
+Сначала нужно сгенерировать клиентские и серверные ключи для прохождения взаимной аутентификации между mtls-tun и mtls-mproxy.
+Можно использовать самоподписанные сертификаты, например, сгенерированные с помощью OpenSSL.
+
+Запуск mtls-tun на локальной машине:
+
+```shell
+./mtls-tun -l 1080 -d vps-host -t 8443 -c ca.pem -s client-cert.pem -p client-key.pem
+```
+
+После этой команды на локальной машине весь трафик, с TCP-порта 1080 будет пробрасываться в зашифрованном виде на 
+vps-host:8443.
+
+Запуск mtls-mproxy на vps-host в режиме Socks5:
+
+```shell
+./mtls-mproxy -p 8443 -m socks5 -l socks.log -t -k server-key.pem -s server-cert.pem -c ca.pem
+```
+
+После этого, можно на локальной машине задать, например, для Firefox, адрес прокси 127.0.0.1:1080 и далее все взаимодействие
+Firefox и Интернет будет происходить с VPS. При этом весь трафик между локальной машиной и удаленной VPS будет зашифрован TLS.
+
+## Сборка на Ubuntu 24.04 (Debian 13)
+
+Подготовка к сборке:
+
+```shell
+# Установка необходимых зависимостей
+sudo apt install gcc-14 g++-14 make cmake ninja-build liburing-dev libssl-dev
+
+# Если gcc --version и g++ --version не работают, то настраиваем альтернативы
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+```
+
+Сборка mtls-mproxy (для mtls-tun все точно так же, кроме пути git-репозитория):
+
+```shell
+git clone https://github.com/almageir/mtls-mproxy.git
+cd mtls-mproxy
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --config Release
+```
+
+## Сборка на Windows 11
+
+1. Установить Visual Studio 2022 Community c поддержкой CMake (С++ CMake tools for Windows)
+2. Скачать `git clone https://github.com/almageir/mtls-tun.git`
+3. Установить OpenSSL с https://slproweb.com/download/Win64OpenSSL-3_5_5.exe
+4. Открыть в Visual Studio папку с проектом в режиме `Open a local folder`.
+5. Выбрать конфигурацию Debug|Release и собрать проект.
+
+## Требования
+
+* CMake 3.23+
+* C++ 20 (GCC 14+, Visual Studio 2022, CLang 19)
+* OpenSSL версии 3+
