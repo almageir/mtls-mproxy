@@ -1,5 +1,7 @@
 # mtls-mproxy
 
+[![Build Linux](https://github.com/almageir/mtls-mproxy/actions/workflows/build-linux.yml/badge.svg?branch=master)](https://github.com/almageir/mtls-mproxy/actions/workflows/build-linux.yml)
+
 **mtls-mproxy** это кроссплатформенный многоцелевой прокси сервер, разработкой которого я занимаюсь в свое свободное
 время в учебно-исследовательских целях и в качестве хобби. 
 Проект пишу на С++. В нем используются:

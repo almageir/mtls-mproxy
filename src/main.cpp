@@ -76,7 +76,7 @@ namespace
         // srv_conf.log_level = parse_log_level(argParser.arg("v").get_value_as_str());
 
         if (argParser.arg("t").is_parsed() || argParser.arg("m").get_value_as_str() == "tun") {
-            std::string err_msg{"When setting \'tls\' parameters or when \'mode=tun\' "};
+            std::string err_msg{R"(When setting 'tls' parameters or when 'mode=tun' )"};
             srv_conf.tls_options.private_key = argParser.arg("k").get_value_as_str();
             if (srv_conf.tls_options.private_key.empty()) {
                 std::cerr << err_msg << "the <private-key> parameter must be specified" << std::endl;
